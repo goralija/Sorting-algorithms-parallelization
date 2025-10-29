@@ -2,13 +2,13 @@
 
 ## Project Purpose
 
-This project compares **multiple sorting algorithms** implemented in three ways:
+This project compares **multiple sorting algorithms** implemented in two stages:
 
-1. **Sequential (baseline)** – standard single-threaded implementation
-2. **Parallel CPU** – multi-core CPU parallelization
-3. **Parallel GPU** – GPU parallelization using PyTorch or other GPU frameworks
+1. **Sequential (baseline)** – standard single-threaded C++ implementations  
+2. **Parallel CPU** – optimized implementations using multi-core and SIMD parallelism  
+3. *(Optional later stage)* **Parallel GPU** – GPU acceleration using CUDA, SYCL, or OpenCL (not yet implemented)
 
-The goal is to **benchmark execution times**, **visualize speedups**, and explore differences between CPU and GPU parallelization across different hardware setups.
+The goal is to **benchmark execution times**, **visualize speedups**, and analyze how various algorithms scale with CPU-level parallelism across different hardware configurations.
 
 ---
 
@@ -16,151 +16,153 @@ The goal is to **benchmark execution times**, **visualize speedups**, and explor
 
 ```
 .
-├── README.md             # This developer guide
-├── data                  # Input arrays and benchmark CSVs
-├── sequential            # Sequential sorting algorithm implementations
-├── parallel_cpu           # CPU-parallel sorting implementations
-├── parallel_gpu           # GPU-parallel sorting implementations
-├── plots                 # Generated performance plots
+├── README.md              # Developer guide
+├── data                   # Input arrays and benchmark outputs (CSV or JSON)
+├── sequential              # Sequential sorting algorithm implementations
+├── parallel_cpu            # CPU-parallel sorting implementations
+├── parallel_gpu            # Placeholder for GPU-parallel implementations (future work)
+├── plots                  # Scripts / data for visualization
+├── include                # Shared headers and utilities
+├── build                  # Compiled output files
+├── run_executables.sh     # Bash script to run all executables and save benchmark
+├── run_executables.ps1    # PowerShell equivalent for Windows
+└── CMakeLists.txt         # Project build configuration
+
 ```
 
 ---
 
-## Dependencies and Virtual Environment
+## Dependencies and Environment Setup
 
-### Python Environment
+### Required Tools
 
-* Python 3.10+ recommended
-* Create a virtual environment to isolate project dependencies:
+- **C++17 or newer**
+- **CMake ≥ 3.16**
+- **Compiler**:
+  - Clang or GCC on Linux/macOS  
+  - MSVC on Windows  
+- **Optional CPU-parallelization libraries:**
+  - [OpenMP](https://www.openmp.org/) – for multi-threading across cores  
+  - [Intel TBB (oneTBB)](https://github.com/oneapi-src/oneTBB) – for task-based parallelism  
+  - [SIMD intrinsics or std::experimental::simd](https://en.cppreference.com/w/cpp/experimental/simd) – for vectorized operations
+  > If `std::experimental::simd` is unavailable, consider using compiler intrinsics (`<immintrin.h>`) for vectorization.
 
-```bash
-python3 -m venv venv
-source venv/bin/activate  # On Linux/MacOS
-venv\Scripts\activate     # On Windows
-```
-
-* Install required packages:
-
-```bash
-pip install -r requirements.txt
-```
-
-* Deactivate environment when done:
-
-```bash
-deactivate
-```
-
-> Using a virtual environment ensures consistent dependencies across different developers' machines.
 
 ---
 
-## Running Sequential Implementations
+### Environment Setup
 
-1. Navigate to `sequential/`:
+#### On macOS / Linux
+
+> **Note (macOS M1/M2):** Apple Clang lacks OpenMP support. Install Homebrew LLVM or GCC to enable OpenMP:
+> 
+> ```bash
+> brew install libomp gcc
+> ```
+
 
 ```bash
-cd sequential
+# Clone the repository
+git clone https://github.com/goralija/Sorting-algorithms-parallelization.git
+cd Sorting-algorithms-parallelization
+
+# Create and enter build directory
+mkdir build && cd build
+
+# Configure and build with CMake (enabling OpenMP)
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
+      -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ ..
+make -j$(nproc)
 ```
 
-2. Run the Python script:
+#### On Windows (PowerShell)
 
 ```bash
-python merge_sort.py
-python quick_sort.py
+git clone https://github.com/goralija/Sorting-algorithms-parallelization.git
+cd Sorting-algorithms-parallelization
+mkdir build && cd build
+cmake -G "Visual Studio 17 2022" -A x64 -DUSE_OPENMP=ON ..
+cmake --build . --config Release
 ```
-
-3. Scripts output execution time and optionally save results to `../data/`.
 
 ---
 
-## Running Parallel CPU Implementations
-
-1. Navigate to `parallel_cpu/`:
-
-```bash
-cd parallel_cpu
-```
-
-2. Run the Python script:
-
-```bash
-python parallel_merge_sort.py
-```
-
-3. Scripts use `multiprocessing` or `concurrent.futures` for parallel execution.
-4. Results are saved in `../data/benchmark_cpu.csv`.
+> All compiled binaries will appear in the `build/` folder. Use `rm -rf build` to clean and rebuild.
 
 ---
 
-## Running Parallel GPU Implementations
+## Running Executables
 
-1. Open the notebook or script in `parallel_gpu/`.
-2. Ensure a GPU runtime is available (local GPU or cloud platform like Colab, Kaggle, etc.).
-3. Run the sorting notebook or script:
+Instead of running each binary manually, you can use the provided scripts:
 
-```python
-# Example
-!python gpu_sort.py
-```
-
-4. Execution times are saved to `../data/benchmark_gpu.csv`.
-
-> **Note:** GPU frameworks automatically use available GPU devices if properly configured.
-
----
-
-## Benchmarking & Plotting
-
-1. Navigate to the project root:
-
+### macOS / Linux
 ```bash
-cd <project-root>
+bash run_executables.sh
 ```
 
-2. Run the benchmark/plot script:
-
-```bash
-python plot_results.py
+### Windows (PowerShell)
+```powershell
+.\run_executables.ps1
 ```
 
-3. Output plots are saved in the `plots/` directory and can be included in reports or presentations.
+These scripts:
+
+- Are still in development, and you can upgrade them if you find bug
+- Rebuild executables
+- Run all sequential and parallel CPU executables automatically  
+- Accept array size arguments if implemented in C++ (`argv[1]`)  
+- Save execution times to `data/benchmark.csv` for plotting
 
 ---
 
 ## Development Workflow
 
 1. **Add new sorting algorithm**
+   - Create a new `.cpp` file under `sequential/` or `parallel_cpu/`
+   - Implement `sort(std::vector<int>& arr)` function
+   - Ensure results are validated (compare with `std::sort()` output)
 
-   * Create a new file in the corresponding folder (`sequential/`, `parallel_cpu/`, or `parallel_gpu/`)
-   * Follow existing conventions:
+2. **Benchmark your algorithm**
+   - Use `std::chrono::high_resolution_clock` to measure runtime
+   - Save results in CSV format:
+     ```
+     algorithm,mode,array_size,time_ms,threads
+     ```
 
-     * Function accepts a NumPy array input
-     * Returns the sorted array
-     * Returns execution time if benchmarked
-
-2. **Benchmark new algorithm**
-
-   * Add calls in `plot_results.py` or benchmarking scripts
-   * Update CSV file names and plot labels
-
-3. **Test on available hardware**
-
-   * Verify correctness on small arrays
-   * Ensure CPU and GPU versions produce identical outputs where applicable
-
-4. **Version control**
-
-   * Use Git to track changes
-   * Keep `data/` folder lightweight — commit only small benchmark CSVs or update `.gitignore`
+3. **Parallelize gradually**
+   - Start from sequential baseline
+   - Add thread/task parallelism (OpenMP or threads)
+   - Add SIMD optimizations where applicable
 
 ---
 
 ## Notes / Best Practices
 
-* Use **array size ≥ 10⁵** to observe CPU parallel speedup.
-* Use **array size ≥ 10⁶** to observe GPU speedup.
-* Repeat each experiment 5–10 times and average results for accuracy.
-* For GPU, synchronize operations (e.g., `torch.cuda.synchronize()`) before measuring execution time for accuracy.
-* This guide is generalized for multiple developers; exact hardware and GPU availability may vary.
+- **Dynamic executables:** All executables are automatically named with prefixes `sequential_` or `parallel_cpu_` to avoid name conflicts.  
+- **SIMD:** Use `std::experimental::simd` or intrinsics for vectorized operations.  
+- **Thread management:** Avoid excessive thread creation in recursive algorithms.  
+- **Data size:** Use ≥ 10⁵ elements for CPU benchmarks.  
+- **Reproducibility:** Repeat tests multiple times and average results.  
+- **Cross-platform:** Code should compile under Clang, GCC, and MSVC with C++17 enabled.
+
+---
+
+## Benchmarking and Plotting
+
+- After running the executables via scripts, results are saved in `data/benchmark.csv`.
+- Visualize with Python:
+```bash
+python plots/plot_results.py
+```
+- Plots show **speedup ratios**, **scaling behavior**, and **algorithm comparisons**.
+
+---
+
+## Future Work (GPU Parallelization)
+
+- GPU acceleration (CUDA, SYCL, or OpenCL) will be implemented in the next phase.
+- Planned algorithms:
+  - GPU-optimized **Bitonic Sort**
+  - GPU **Radix Sort**
+  - Compare performance against CPU-parallelized equivalents
 
