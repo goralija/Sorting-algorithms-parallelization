@@ -3,7 +3,7 @@
 #include <cstring>  // for memcpy
 #include <main_template.hpp>
 
-const int INSERTION_SORT_THRESHOLD = 16;
+const int INSERTION_SORT_THRESHOLD = 32; //empirijski odabir
 
 void insertion_sort(int arr[], int l, int r) {
     for (int i = l + 1; i <= r; i++) {
