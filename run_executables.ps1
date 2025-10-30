@@ -5,7 +5,7 @@
 
 $BuildDir = "build"
 $DataDir = "data"
-$Sizes = @(10000, 100000, 500000, 1000000, 5000000)
+$Sizes = @(10000 100000 500000 1000000 5000000 10000000 50000000 100000000 500000000 1000000000)
 
 # Clean rebuild
 if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
