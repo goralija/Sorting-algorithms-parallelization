@@ -5,12 +5,12 @@
 
 using namespace std;
 
-// Merge two subarrays L and M into arr
 void merge(int arr[], int p, int q, int r) {
   
   // Create L ← A[p..q] and M ← A[q+1..r]
-  int n1 = q - p + 1;
   int n2 = r - q;
+  int n1 = q - p + 1;
+  
   
   // Use std::vector to dynamically allocate arrays
   vector<int> L(n1);
