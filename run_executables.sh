@@ -1,34 +1,41 @@
-#!/bin/bash
-# run_executables.sh
-# Runs all sequential and parallel CPU executables and measures execution time
 # Still in development - modify as needed
 
-# Rebuild all executables
-mkdir -p build
-cd build
-#cmake ..       # Configure project
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
-      -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ ..
-make -j        # Build all targets
-cd ..
+#!/bin/bash
+# run_executables.sh
+# Rebuilds all executables, runs them with different input sizes, and logs results
 
 BUILD_DIR="build"
 DATA_DIR="data"
+SIZES=(10000 100000 500000 1000000 5000000)
 
+# Clean and rebuild
+rm -rf ${BUILD_DIR}
+mkdir -p ${BUILD_DIR}
+cd ${BUILD_DIR}
+cmake -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
+      -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ ..
+make -j$(nproc)
+cd ..
+
+# Prepare output folder and CSV
 mkdir -p ${DATA_DIR}
+OUTFILE="${DATA_DIR}/benchmark.csv"
+echo "Algorithm,ArraySize,TimeMs" > "${OUTFILE}"
 
-echo "Algorithm,Mode,ArraySize,TimeMs" > ${DATA_DIR}/benchmark.csv
-
+# Run all executables with various input sizes
 for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
     if [[ -x "$exe" ]]; then
-        exe_name=$(basename $exe)
-        echo "Running $exe_name ..."
-        # Example: run the executable with an array size argument
-        # You can modify your C++ main() to accept array size as argv[1]
-        size=1000000
-        time_ms=$($exe $size)  # Your executable should print execution time in ms
-        echo "${exe_name},${size},${time_ms}" >> ${DATA_DIR}/benchmark.csv
+        exe_name=$(basename "$exe")
+        echo "=== Running $exe_name ==="
+        for size in "${SIZES[@]}"; do
+            echo "  -> Size: $size"
+            output=$("$exe" "$size")
+            # Extract time in ms (assuming executable prints "Execution time (ms): X")
+            time_ms=$(echo "$output" | grep "Execution time" | awk '{print $4}')
+            echo "${exe_name},${size},${time_ms}" >> "${OUTFILE}"
+        done
     fi
 done
 
-echo "Benchmark finished. Results saved in ${DATA_DIR}/benchmark.csv"
+echo "✅ Benchmark finished. Results saved in ${OUTFILE}"
