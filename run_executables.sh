@@ -20,6 +20,7 @@ cd ..
 
 # Prepare output folder and CSV
 mkdir -p ${DATA_DIR}
+mv ${DATA_DIR}/benchmark.csv ${DATA_DIR}/benchmark_backup_$(date +%s).csv 2>/dev/null || true
 OUTFILE="${DATA_DIR}/benchmark.csv"
 echo "Algorithm,ArraySize,TimeMs" > "${OUTFILE}"
 

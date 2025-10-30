@@ -17,6 +17,7 @@ Pop-Location
 
 # Prepare CSV
 if (-Not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir }
+Move-Item "$DataDir\benchmark.csv" "$DataDir\benchmark_backup_$(Get-Date -UFormat %s).csv" -ErrorAction SilentlyContinue
 $BenchmarkFile = "$DataDir\benchmark.csv"
 "Algorithm,Mode,ArraySize,TimeMs" | Out-File $BenchmarkFile
 
