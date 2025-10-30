@@ -16,10 +16,16 @@ else()
 endif()
 
 # --- Sequential executables ---
-file(GLOB SEQ_SRC "sequential/*.cpp")
+file(GLOB SEQ_SRC "sequential_naive/*.cpp")
 foreach(src_file ${SEQ_SRC})
     get_filename_component(exec_name ${src_file} NAME_WE)
-    add_executable(sequential_${exec_name} ${src_file})
+    add_executable(sequential_naive_${exec_name} ${src_file})
+endforeach()
+
+file(GLOB SEQ_SRC "sequential_optimized/*.cpp")
+foreach(src_file ${SEQ_SRC})
+    get_filename_component(exec_name ${src_file} NAME_WE)
+    add_executable(sequential_optimized_${exec_name} ${src_file})
 endforeach()
 
 # --- Parallel CPU executables ---
