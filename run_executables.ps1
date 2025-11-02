@@ -7,6 +7,7 @@ $DataDir = "data"
 $HashFile = "$DataDir\last_run_hashes.txt"
 $OutFile = "$DataDir\benchmark.csv"
 $Sizes = @(10000, 5000000, 50000000, 500000000)
+$Types = @("random", "sorted", "reversed", "nearly_sorted", "few_unique")
 
 # Detect number of CPU cores
 $Cores = [Environment]::ProcessorCount
@@ -32,7 +33,7 @@ if (Test-Path $OutFile) {
 }
 
 # Initialize new CSV
-"Algorithm,ArraySize,TimeMs" | Out-File $OutFile
+"Algorithm,ArraySize,ArrayType,TimeMs" | Out-File $OutFile
 
 # Load old hashes
 $oldHashes = @{}
@@ -69,15 +70,17 @@ Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|par
     }
 
     Write-Host "🚀 Running updated executable: $exeName"
-    foreach ($size in $Sizes) {
-        Write-Host "  -> Size: $size"
-        $output = & $exePath $size 2>&1
-        $timeLine = ($output | Select-String -Pattern "Execution time").Line
-        if ($timeLine) {
-            $timeMs = ($timeLine -split " ")[-1]
-            "$exeName,$size,$timeMs" | Out-File $OutFile -Append
-        } else {
-            Write-Host "⚠️  Warning: Could not parse time output for $exeName ($size)"
+    foreach ($type in $Types) {
+        foreach ($size in $Sizes) {
+            Write-Host "  -> Type: $type | Size: $size"
+            $output = & $exePath $size $type 2>&1
+            $timeLine = ($output | Select-String -Pattern "Execution time").Line
+            if ($timeLine) {
+                $timeMs = ($timeLine -split " ")[-1]
+                "$exeName,$size,$type,$timeMs" | Out-File $OutFile -Append
+            } else {
+                Write-Host "⚠️  Warning: Could not parse time output for $exeName ($size, $type)"
+            }
         }
     }
 }
