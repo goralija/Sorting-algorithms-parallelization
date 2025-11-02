@@ -1,16 +1,15 @@
 #!/bin/bash
 # run_executables.sh
 # Rebuilds all executables, runs only changed ones, and logs results
-# Copies results of unchanged executables from previous benchmark
-# Compatible with macOS default bash (v3.2)
+# Adds benchmarking for multiple array types
 
 BUILD_DIR="build"
 DATA_DIR="data"
 HASH_FILE="${DATA_DIR}/last_run_hashes.txt"
 OUTFILE="${DATA_DIR}/benchmark.csv"
 SIZES=(10000 5000000 50000000 500000000)
+TYPES=("random" "sorted" "reversed" "nearly_sorted" "few_unique")
 
-# Detect number of CPU cores (macOS compatible)
 CORES=$(sysctl -n hw.logicalcpu)
 
 echo "🔧 Rebuilding executables..."
@@ -34,7 +33,7 @@ if [[ -f "${OUTFILE}" ]]; then
 fi
 
 # Initialize new CSV
-echo "Algorithm,ArraySize,TimeMs" > "${OUTFILE}"
+echo "Algorithm,ArraySize,ArrayType,TimeMs" > "${OUTFILE}"
 
 # Load old hashes if exist
 touch "${HASH_FILE}"
@@ -66,11 +65,13 @@ for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
         fi
 
         echo "🚀 Running updated executable: $exe_name"
-        for size in "${SIZES[@]}"; do
-            echo "  -> Size: $size"
-            output=$("$exe" "$size" 2>&1)
-            time_ms=$(echo "$output" | grep "Execution time" | awk '{print $4}')
-            echo "${exe_name},${size},${time_ms}" >> "${OUTFILE}"
+        for type in "${TYPES[@]}"; do
+            for size in "${SIZES[@]}"; do
+                echo "  -> Type: $type | Size: $size"
+                output=$("$exe" "$size" "$type" 2>&1)
+                time_ms=$(echo "$output" | grep "Execution time" | awk '{print $4}')
+                echo "${exe_name},${size},${type},${time_ms}" >> "${OUTFILE}"
+            done
         done
     fi
 done
