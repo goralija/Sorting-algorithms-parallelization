@@ -156,6 +156,5 @@ if (Test-Path $PlotsScript) {
     Write-Host "⚠️  Plotting script not found: $PlotsScript"
 }
 
-# Deactivate virtual environment
-deactivate
+# Note: Virtual environment will be deactivated when script exits
 

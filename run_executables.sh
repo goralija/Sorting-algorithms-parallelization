@@ -86,10 +86,9 @@ echo "✅ Benchmark finished. Results saved in ${OUTFILE}"
 # ============================================================================
 
 echo ""
-echo "=" | head -c 60
-echo ""
+echo "============================================================"
 echo "📊 Setting up Python environment for plotting..."
-echo "=" | head -c 60
+echo "============================================================"
 echo ""
 
 VENV_DIR="venv"
@@ -135,11 +134,10 @@ if [[ -f "${PLOTS_SCRIPT}" ]]; then
     
     if [[ $? -eq 0 ]]; then
         echo ""
-        echo "=" | head -c 60
-        echo ""
+        echo "============================================================"
         echo "✅ SUCCESS! All plots generated."
         echo "📂 Check the plots/ directory for visualization results."
-        echo "=" | head -c 60
+        echo "============================================================"
         echo ""
     else
         echo "⚠️  Plot generation encountered errors."
@@ -148,5 +146,5 @@ else
     echo "⚠️  Plotting script not found: ${PLOTS_SCRIPT}"
 fi
 
-# Deactivate virtual environment
-deactivate
+# Virtual environment will be deactivated when script exits
+
