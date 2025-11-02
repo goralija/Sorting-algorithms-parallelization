@@ -80,3 +80,73 @@ done
 mv "${TMP_HASH_FILE}" "${HASH_FILE}"
 
 echo "✅ Benchmark finished. Results saved in ${OUTFILE}"
+
+# ============================================================================
+# Python plotting setup and execution
+# ============================================================================
+
+echo ""
+echo "=" | head -c 60
+echo ""
+echo "📊 Setting up Python environment for plotting..."
+echo "=" | head -c 60
+echo ""
+
+VENV_DIR="venv"
+PLOTS_SCRIPT="plots/plot_results.py"
+
+# Check if Python 3 is available
+if ! command -v python3 &> /dev/null; then
+    echo "⚠️  Python 3 not found. Skipping plot generation."
+    echo "   Install Python 3.10+ to enable visualization."
+    exit 0
+fi
+
+PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+echo "✅ Found Python ${PYTHON_VERSION}"
+
+# Create virtual environment if it doesn't exist
+if [[ ! -d "${VENV_DIR}" ]]; then
+    echo "📦 Creating Python virtual environment..."
+    python3 -m venv "${VENV_DIR}"
+    echo "✅ Virtual environment created"
+fi
+
+# Activate virtual environment
+echo "🔄 Activating virtual environment..."
+source "${VENV_DIR}/bin/activate"
+
+# Install/update dependencies
+if [[ -f "requirements.txt" ]]; then
+    echo "📥 Installing Python dependencies..."
+    pip install --quiet --upgrade pip
+    pip install --quiet -r requirements.txt
+    echo "✅ Dependencies installed"
+else
+    echo "⚠️  requirements.txt not found. Installing basic packages..."
+    pip install --quiet matplotlib pandas numpy
+fi
+
+# Run plotting script
+if [[ -f "${PLOTS_SCRIPT}" ]]; then
+    echo ""
+    echo "🎨 Generating plots..."
+    python3 "${PLOTS_SCRIPT}"
+    
+    if [[ $? -eq 0 ]]; then
+        echo ""
+        echo "=" | head -c 60
+        echo ""
+        echo "✅ SUCCESS! All plots generated."
+        echo "📂 Check the plots/ directory for visualization results."
+        echo "=" | head -c 60
+        echo ""
+    else
+        echo "⚠️  Plot generation encountered errors."
+    fi
+else
+    echo "⚠️  Plotting script not found: ${PLOTS_SCRIPT}"
+fi
+
+# Deactivate virtual environment
+deactivate

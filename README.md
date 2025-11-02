@@ -149,12 +149,78 @@ These scripts:
 
 ## Benchmarking and Plotting
 
-- After running the executables via scripts, results are saved in `data/benchmark.csv`.
-- Visualize with Python:
+### Prerequisites
+
+- **Python 3.10 or newer**
+- Required Python libraries: `matplotlib`, `pandas`, `numpy`
+
+### Setting Up Python Environment
+
+#### On macOS / Linux
+
 ```bash
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+#### On Windows (PowerShell)
+
+```powershell
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Running Benchmarks and Generating Plots
+
+The `run_executables` scripts automatically:
+1. Build and run all sorting algorithm executables
+2. Save benchmark results to `data/benchmark.csv`
+3. Set up Python virtual environment (if needed)
+4. Generate visualization plots in `plots/` directory
+
+#### On macOS / Linux
+```bash
+bash run_executables.sh
+```
+
+#### On Windows (PowerShell)
+```powershell
+.\run_executables.ps1
+```
+
+### Manual Plot Generation
+
+If you want to generate plots manually from existing benchmark data:
+
+```bash
+# Activate virtual environment
+source venv/bin/activate  # On Windows: .\venv\Scripts\Activate.ps1
+
+# Run plotting script
 python plots/plot_results.py
 ```
-- Plots show **speedup ratios**, **scaling behavior**, and **algorithm comparisons**.
+
+### Generated Plots
+
+The plotting script generates the following visualizations:
+
+1. **`speedup_vs_sequential.png`** - Shows CPU parallelization speedup compared to sequential implementations
+2. **`improvement_vs_previous.png`** - Compares current results with previous benchmark runs (from backups)
+3. **`performance_by_array_size.png`** - Shows performance distribution across different array sizes
+
+All plots are saved in the `plots/` directory.
 
 ---
 
