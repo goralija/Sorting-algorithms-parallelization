@@ -1,3 +1,0 @@
-build/sequential_naive_merge_sort ba9b68418542412b5f731d6ee64fca14
-build/sequential_optimized_merge_sort 7e72947c65551bacceb21398ca72515a
-build/parallel_cpu_merge_sort 17a50ca16d1ac4a804b54ed9597227b9
