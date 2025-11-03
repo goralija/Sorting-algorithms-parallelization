@@ -46,6 +46,14 @@ venv/
 data/*.csv
 data/*.log
 
+# Hash files
 *hash*
 
+# Makefile for building the project
 Makefile
+
+# Generated plots
+plots/*.png
+plots/*.jpg
+plots/*.jpeg
+plots/*.pdf
