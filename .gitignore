@@ -46,4 +46,4 @@ venv/
 data/*.csv
 data/*.log
 
-*hashes*
+*hash*
