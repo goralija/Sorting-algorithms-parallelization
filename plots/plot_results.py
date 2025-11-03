@@ -22,7 +22,6 @@ DATA_DIR = PROJECT_ROOT / 'data'
 PLOTS_DIR = SCRIPT_DIR
 BENCHMARK_FILE = DATA_DIR / 'benchmark.csv'
 
-
 def load_benchmark_data(filepath):
     """Load benchmark CSV data."""
     if not filepath.exists():
@@ -37,7 +36,6 @@ def load_benchmark_data(filepath):
         print(f"❌ Error reading {filepath}: {e}")
         return None
 
-
 def categorize_algorithm(algo_name):
     """Categorize algorithm by implementation type."""
     if 'sequential_naive' in algo_name:
@@ -51,7 +49,6 @@ def categorize_algorithm(algo_name):
     else:
         return 'Unknown'
 
-
 def extract_algorithm_name(full_name):
     """Extract clean algorithm name from executable name."""
     # Remove prefix and extension
@@ -62,106 +59,101 @@ def extract_algorithm_name(full_name):
     name = name.replace('.exe', '')
     return name
 
-
 def plot_speedup_vs_sequential(df, output_path):
     """
     Plot CPU parallelization speedup compared to sequential implementation.
-    Shows speedup ratio for each algorithm and array size.
+    Creates separate PNG plots for each array type showing naive, optimized, and parallelized performance.
+    Saves plots in algorithm-specific folders.
     """
-    print("\n📊 Generating speedup vs sequential plot...")
+    print("\n📊 Generating speedup vs sequential plots...")
     
     # Add categories
     df['Category'] = df['Algorithm'].apply(categorize_algorithm)
     df['AlgoName'] = df['Algorithm'].apply(extract_algorithm_name)
     
-    # Get sequential baseline (prefer optimized, fallback to naive)
-    sequential_df = df[df['Category'].str.contains('Sequential')]
+    # Get data for each category
+    naive_df = df[df['Category'] == 'Sequential Naive']
+    optimized_df = df[df['Category'] == 'Sequential Optimized']
     parallel_df = df[df['Category'] == 'Parallel CPU']
     
-    if sequential_df.empty or parallel_df.empty:
-        print("⚠️  Not enough data for speedup comparison (need both sequential and parallel results)")
+    if naive_df.empty and optimized_df.empty and parallel_df.empty:
+        print("⚠️  Not enough data for comparison")
         return
     
-    # For each parallel algorithm, compute speedup
-    speedup_data = []
+    # Get all unique algorithm names across all categories
+    all_algorithms = set()
+    for data in [naive_df, optimized_df, parallel_df]:
+        if not data.empty:
+            all_algorithms.update(data['AlgoName'].unique())
     
-    for algo_name in parallel_df['AlgoName'].unique():
-        for array_size in parallel_df['ArraySize'].unique():
-            for array_type in parallel_df['ArrayType'].unique():
-                # Get parallel time
-                parallel_time = parallel_df[
-                    (parallel_df['AlgoName'] == algo_name) & 
-                    (parallel_df['ArraySize'] == array_size) & 
-                    (parallel_df['ArrayType'] == array_type)
-                ]['TimeMs'].values
-                
-                # Get sequential time (prefer optimized)
-                seq_opt = sequential_df[
-                    (sequential_df['Category'] == 'Sequential Optimized') &
-                    (sequential_df['AlgoName'] == algo_name) & 
-                    (sequential_df['ArraySize'] == array_size) & 
-                    (sequential_df['ArrayType'] == array_type)
-                ]['TimeMs'].values
-                
-                seq_naive = sequential_df[
-                    (sequential_df['Category'] == 'Sequential Naive') &
-                    (sequential_df['AlgoName'] == algo_name) & 
-                    (sequential_df['ArraySize'] == array_size) & 
-                    (sequential_df['ArrayType'] == array_type)
-                ]['TimeMs'].values
-                
-                sequential_time = seq_opt if len(seq_opt) > 0 else seq_naive
-                
-                if len(parallel_time) > 0 and len(sequential_time) > 0:
-                    speedup = sequential_time[0] / parallel_time[0]
-                    speedup_data.append({
-                        'Algorithm': algo_name,
-                        'ArraySize': array_size,
-                        'ArrayType': array_type,
-                        'Speedup': speedup
-                    })
+    # Create plots for each algorithm and array type combination
+    array_types = df['ArrayType'].unique()
     
-    if not speedup_data:
-        print("⚠️  No speedup data could be calculated")
-        return
-    
-    speedup_df = pd.DataFrame(speedup_data)
-    
-    # Create plot with subplots for each array type
-    array_types = speedup_df['ArrayType'].unique()
-    n_types = len(array_types)
-    
-    fig, axes = plt.subplots(1, n_types, figsize=(6*n_types, 6), squeeze=False)
-    axes = axes.flatten()
-    
-    for idx, array_type in enumerate(array_types):
-        ax = axes[idx]
-        type_data = speedup_df[speedup_df['ArrayType'] == array_type]
+    for algo_name in all_algorithms:
+        # Create algorithm-specific folder
+        algo_folder = output_path.parent / algo_name
+        algo_folder.mkdir(exist_ok=True)
         
-        # Plot speedup by array size for each algorithm
-        for algo in type_data['Algorithm'].unique():
-            algo_data = type_data[type_data['Algorithm'] == algo].sort_values('ArraySize')
-            ax.plot(algo_data['ArraySize'], algo_data['Speedup'], 
-                   marker='o', label=algo, linewidth=2, markersize=8)
-        
-        ax.axhline(y=1.0, color='r', linestyle='--', alpha=0.5, label='No speedup')
-        ax.set_xlabel('Array Size', fontsize=12)
-        ax.set_ylabel('Speedup (Sequential / Parallel)', fontsize=12)
-        ax.set_title(f'Array Type: {array_type}', fontsize=14, fontweight='bold')
-        ax.set_xscale('log')
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-    
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"✅ Speedup plot saved to: {output_path}")
-    plt.close()
-
+        for array_type in array_types:
+            fig, ax = plt.subplots(figsize=(12, 8))
+            
+            # Filter data for this algorithm and array type
+            algo_naive = naive_df[(naive_df['AlgoName'] == algo_name) & (naive_df['ArrayType'] == array_type)]
+            algo_optimized = optimized_df[(optimized_df['AlgoName'] == algo_name) & (optimized_df['ArrayType'] == array_type)]
+            algo_parallel = parallel_df[(parallel_df['AlgoName'] == algo_name) & (parallel_df['ArrayType'] == array_type)]
+            
+            # Define colors and styles
+            colors = {'Sequential Naive': 'red', 'Sequential Optimized': 'blue', 'Parallel CPU': 'green'}
+            markers = ['o', 's', '^']
+            
+            # Plot each category for this specific algorithm
+            plot_added = False
+            for idx, (category, data, marker) in enumerate([
+                ('Sequential Naive', algo_naive, 'o'), 
+                ('Sequential Optimized', algo_optimized, 's'), 
+                ('Parallel CPU', algo_parallel, '^')
+            ]):
+                if data.empty:
+                    continue
+                    
+                avg_by_size = data.groupby('ArraySize')['TimeMs'].mean().reset_index()
+                avg_by_size = avg_by_size.sort_values('ArraySize')
+                
+                if not avg_by_size.empty:
+                    ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
+                           color=colors[category],
+                           marker=marker,
+                           label=category, 
+                           linewidth=2, 
+                           markersize=8,
+                           alpha=0.8)
+                    plot_added = True
+            
+            # Only save plot if there's data to show
+            if plot_added:
+                ax.set_xlabel('Array Size', fontsize=12)
+                ax.set_ylabel('Execution Time (ms)', fontsize=12)
+                ax.set_title(f'{algo_name.title()} Performance - {array_type} Arrays', fontsize=14, fontweight='bold')
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+                ax.grid(True, alpha=0.3)
+                ax.legend(fontsize=11)
+                
+                plt.tight_layout()
+                
+                # Save individual plot for this algorithm and array type
+                safe_array_type = array_type.replace(' ', '_').replace('/', '_')
+                individual_output = algo_folder / f'performance_{safe_array_type.lower()}.png'
+                plt.savefig(individual_output, dpi=300, bbox_inches='tight')
+                print(f"✅ {algo_name} performance plot for {array_type} saved to: {individual_output}")
+            
+            plt.close()
 
 def plot_comparison_with_backup(current_df, backup_files, output_path):
     """
     Compare current results with previous runs (from backups).
-    Shows improvement over time.
+    Shows improvement percentages for naive, optimized, and parallelized versions in a single bar plot.
+    Saves plots in algorithm-specific folders.
     """
     print("\n📊 Generating comparison with previous runs plot...")
     
@@ -182,79 +174,91 @@ def plot_comparison_with_backup(current_df, backup_files, output_path):
         df['Category'] = df['Algorithm'].apply(categorize_algorithm)
         df['AlgoName'] = df['Algorithm'].apply(extract_algorithm_name)
     
-    # Calculate improvement
-    improvement_data = []
+    # Get all unique algorithm names
+    all_algorithms = set()
+    all_algorithms.update(current_df['AlgoName'].unique())
+    all_algorithms.update(backup_df['AlgoName'].unique())
     
-    for algo in current_df['Algorithm'].unique():
-        for array_size in current_df['ArraySize'].unique():
-            for array_type in current_df['ArrayType'].unique():
-                current_time = current_df[
-                    (current_df['Algorithm'] == algo) & 
-                    (current_df['ArraySize'] == array_size) & 
-                    (current_df['ArrayType'] == array_type)
-                ]['TimeMs'].values
-                
-                backup_time = backup_df[
-                    (backup_df['Algorithm'] == algo) & 
-                    (backup_df['ArraySize'] == array_size) & 
-                    (backup_df['ArrayType'] == array_type)
-                ]['TimeMs'].values
-                
-                if len(current_time) > 0 and len(backup_time) > 0:
-                    improvement_pct = ((backup_time[0] - current_time[0]) / backup_time[0]) * 100
-                    improvement_data.append({
-                        'Algorithm': algo,
-                        'ArraySize': array_size,
-                        'ArrayType': array_type,
-                        'Category': categorize_algorithm(algo),
-                        'ImprovementPct': improvement_pct
-                    })
-    
-    if not improvement_data:
-        print("⚠️  No comparison data could be calculated")
-        return
-    
-    improvement_df = pd.DataFrame(improvement_data)
-    
-    # Create bar chart grouped by category
-    fig, ax = plt.subplots(figsize=(14, 8))
-    
-    categories = improvement_df['Category'].unique()
-    x = np.arange(len(categories))
-    width = 0.15
-    
-    array_sizes = sorted(improvement_df['ArraySize'].unique())
-    
-    for idx, size in enumerate(array_sizes):
-        size_data = improvement_df[improvement_df['ArraySize'] == size]
-        avg_improvement = [
-            size_data[size_data['Category'] == cat]['ImprovementPct'].mean()
-            for cat in categories
-        ]
+    # Create comparison plot for each algorithm
+    for algo_name in all_algorithms:
+        # Create algorithm-specific folder
+        algo_folder = output_path.parent / algo_name
+        algo_folder.mkdir(exist_ok=True)
         
-        offset = (idx - len(array_sizes)/2) * width
-        ax.bar(x + offset, avg_improvement, width, 
-               label=f'Size: {size:,}', alpha=0.8)
-    
-    ax.set_xlabel('Implementation Category', fontsize=12)
-    ax.set_ylabel('Average Improvement (%)', fontsize=12)
-    ax.set_title('Performance Improvement vs Previous Run', fontsize=14, fontweight='bold')
-    ax.set_xticks(x)
-    ax.set_xticklabels(categories, rotation=15, ha='right')
-    ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
-    ax.legend(loc='best')
-    ax.grid(True, alpha=0.3, axis='y')
-    
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"✅ Comparison plot saved to: {output_path}")
-    plt.close()
-
+        # Calculate improvement by category for this specific algorithm
+        categories = ['Sequential Naive', 'Sequential Optimized', 'Parallel CPU']
+        improvement_by_category = {}
+        
+        for category in categories:
+            current_cat = current_df[(current_df['Category'] == category) & (current_df['AlgoName'] == algo_name)]
+            backup_cat = backup_df[(backup_df['Category'] == category) & (backup_df['AlgoName'] == algo_name)]
+            
+            if current_cat.empty or backup_cat.empty:
+                improvement_by_category[category] = 0
+                continue
+            
+            # Calculate average improvement for this algorithm in this category
+            improvements = []
+            
+            for array_size in current_cat['ArraySize'].unique():
+                for array_type in current_cat['ArrayType'].unique():
+                    current_time = current_cat[
+                        (current_cat['ArraySize'] == array_size) & 
+                        (current_cat['ArrayType'] == array_type)
+                    ]['TimeMs'].values
+                    
+                    backup_time = backup_cat[
+                        (backup_cat['ArraySize'] == array_size) & 
+                        (backup_cat['ArrayType'] == array_type)
+                    ]['TimeMs'].values
+                    
+                    if len(current_time) > 0 and len(backup_time) > 0:
+                        improvement_pct = ((backup_time[0] - current_time[0]) / backup_time[0]) * 100
+                        improvements.append(improvement_pct)
+            
+            improvement_by_category[category] = np.mean(improvements) if improvements else 0
+        
+        # Only create plot if there's data
+        if any(improvement_by_category.values()):
+            # Create bar plot
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            categories_with_data = [cat for cat in categories if cat in improvement_by_category]
+            improvements = [improvement_by_category[cat] for cat in categories_with_data]
+            
+            # Define colors
+            colors = ['red', 'blue', 'green']
+            
+            bars = ax.bar(categories_with_data, improvements, color=colors[:len(categories_with_data)], alpha=0.7)
+            
+            # Add value labels on bars
+            for bar, improvement in zip(bars, improvements):
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + (0.5 if height >= 0 else -1.5),
+                        f'{improvement:.1f}%', ha='center', va='bottom' if height >= 0 else 'top', 
+                        fontsize=11, fontweight='bold')
+            
+            ax.set_ylabel('Performance Improvement (%)', fontsize=12)
+            ax.set_title(f'{algo_name.title()} - Performance Improvement vs Previous Run', fontsize=14, fontweight='bold')
+            ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+            ax.grid(True, alpha=0.3, axis='y')
+            
+            # Rotate x-axis labels for better readability
+            plt.xticks(rotation=15, ha='right')
+            plt.tight_layout()
+            
+            # Save in algorithm-specific folder
+            algo_output = algo_folder / 'improvement_vs_previous.png'
+            plt.savefig(algo_output, dpi=300, bbox_inches='tight')
+            print(f"✅ {algo_name} comparison plot saved to: {algo_output}")
+            plt.close()
 
 def plot_performance_by_size(df, output_path):
     """
     Plot performance distribution by array size.
     Shows how different algorithms scale with input size.
+    All sequential naive, optimized, and CPU parallelized on the same graph.
+    Saves plots in algorithm-specific folders.
     """
     print("\n📊 Generating performance by array size plot...")
     
@@ -262,41 +266,77 @@ def plot_performance_by_size(df, output_path):
     df['Category'] = df['Algorithm'].apply(categorize_algorithm)
     df['AlgoName'] = df['Algorithm'].apply(extract_algorithm_name)
     
-    # Create subplots for each category
-    categories = df['Category'].unique()
-    n_cats = len(categories)
+    # Filter for the categories we want to compare
+    categories_to_plot = ['Sequential Naive', 'Sequential Optimized', 'Parallel CPU']
+    plot_data = df[df['Category'].isin(categories_to_plot)]
     
-    fig, axes = plt.subplots(n_cats, 1, figsize=(12, 5*n_cats), squeeze=False)
-    axes = axes.flatten()
+    if plot_data.empty:
+        print("⚠️  No data found for the specified categories")
+        return
     
-    for idx, category in enumerate(categories):
-        ax = axes[idx]
-        cat_data = df[df['Category'] == category]
+    # Get all unique algorithm names
+    all_algorithms = plot_data['AlgoName'].unique()
+    
+    # Create plot for each algorithm
+    for algo_name in all_algorithms:
+        # Create algorithm-specific folder
+        algo_folder = output_path.parent / algo_name
+        algo_folder.mkdir(exist_ok=True)
         
-        # Group by algorithm and plot
-        for algo in cat_data['AlgoName'].unique():
-            algo_data = cat_data[cat_data['AlgoName'] == algo]
+        # Filter data for this algorithm
+        algo_data = plot_data[plot_data['AlgoName'] == algo_name]
+        
+        if algo_data.empty:
+            continue
+        
+        # Create single plot for this algorithm
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Define colors for each category
+        category_colors = {
+            'Sequential Naive': 'red',
+            'Sequential Optimized': 'blue', 
+            'Parallel CPU': 'green'
+        }
+        
+        # Plot each category for this algorithm
+        for category in categories_to_plot:
+            cat_data = algo_data[algo_data['Category'] == category]
+            
+            if cat_data.empty:
+                continue
             
             # Average across array types for cleaner visualization
-            avg_by_size = algo_data.groupby('ArraySize')['TimeMs'].mean().reset_index()
+            avg_by_size = cat_data.groupby('ArraySize')['TimeMs'].mean().reset_index()
             avg_by_size = avg_by_size.sort_values('ArraySize')
             
-            ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
-                   marker='o', label=algo, linewidth=2, markersize=8)
+            if not avg_by_size.empty:
+                # Plot with category color
+                ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
+                       color=category_colors[category],
+                       marker='o',
+                       label=category, 
+                       linewidth=2, 
+                       markersize=6,
+                       alpha=0.8)
         
         ax.set_xlabel('Array Size', fontsize=12)
         ax.set_ylabel('Execution Time (ms)', fontsize=12)
-        ax.set_title(f'{category} - Performance vs Array Size', fontsize=14, fontweight='bold')
+        ax.set_title(f'{algo_name.title()} - Performance Comparison: Sequential vs Parallel CPU', fontsize=14, fontweight='bold')
         ax.set_xscale('log')
         ax.set_yscale('log')
         ax.grid(True, alpha=0.3)
-        ax.legend()
-    
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"✅ Performance by size plot saved to: {output_path}")
-    plt.close()
-
+        
+        # Customize legend
+        ax.legend(fontsize=11)
+        
+        plt.tight_layout()
+        
+        # Save in algorithm-specific folder
+        algo_output = algo_folder / 'performance_by_array_size.png'
+        plt.savefig(algo_output, dpi=300, bbox_inches='tight')
+        print(f"✅ {algo_name} performance by size plot saved to: {algo_output}")
+        plt.close()
 
 def main():
     """Main function to generate all plots."""
@@ -330,13 +370,16 @@ def main():
     print("\n" + "=" * 60)
     print("✅ All plots generated successfully!")
     print("=" * 60)
-    print(f"\n📂 Plots saved in: {PLOTS_DIR}")
-    print("\nGenerated files:")
-    print("  - speedup_vs_sequential.png")
-    print("  - improvement_vs_previous.png")
-    print("  - performance_by_array_size.png")
+    print(f"\n📂 Plots saved in algorithm-specific folders under: {PLOTS_DIR}")
+    print("\nGenerated folder structure:")
+    
+    # Show generated folders
+    for algo_folder in PLOTS_DIR.iterdir():
+        if algo_folder.is_dir():
+            print(f"  📁 {algo_folder.name}/")
+            for plot_file in algo_folder.glob('*.png'):
+                print(f"    📊 {plot_file.name}")
     print()
-
 
 if __name__ == '__main__':
     main()

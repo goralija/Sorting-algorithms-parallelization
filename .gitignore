@@ -53,7 +53,7 @@ data/*.log
 Makefile
 
 # Generated plots
-plots/*.png
-plots/*.jpg
-plots/*.jpeg
-plots/*.pdf
+plots/**/*.png
+plots/**/*.jpg
+plots/**/*.jpeg
+plots/**/*.pdf
