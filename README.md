@@ -214,13 +214,7 @@ python plots/plot_results.py
 
 ### Generated Plots
 
-The plotting script generates the following visualizations:
-
-1. **`speedup_vs_sequential.png`** - Shows CPU parallelization speedup compared to sequential implementations
-2. **`improvement_vs_previous.png`** - Compares current results with previous benchmark runs (from backups)
-3. **`performance_by_array_size.png`** - Shows performance distribution across different array sizes
-
-All plots are saved in the `plots/` directory.
+TBD
 
 ---
 
