@@ -24,8 +24,8 @@ The goal is to **benchmark execution times**, **visualize speedups**, and analyz
 ├── plots                  # Scripts / data for visualization
 ├── include                # Shared headers and utilities
 ├── build                  # Compiled output files
-├── run_executables.sh     # Bash script to run all executables and save benchmark
-├── run_executables.ps1    # PowerShell equivalent for Windows
+├── run_project.sh.        # Bash script to run all executables, save benchmark and plot results
+├── run_project.ps1    # PowerShell equivalent for Windows
 └── CMakeLists.txt         # Project build configuration
 
 ```
@@ -91,18 +91,18 @@ cmake --build . --config Release
 
 ---
 
-## Running Executables
+## Running Project Pipeline
 
 Instead of running each binary manually, you can use the provided scripts:
 
 ### macOS / Linux
 ```bash
-bash run_executables.sh
+bash run_project.sh
 ```
 
 ### Windows (PowerShell)
 ```powershell
-.\run_executables.ps1
+.\run_project.ps1
 ```
 
 These scripts:
@@ -112,6 +112,7 @@ These scripts:
 - Run all sequential and parallel CPU executables automatically  
 - Accept array size arguments if implemented in C++ (`argv[1]`)  
 - Save execution times to `data/benchmark.csv` for plotting
+- Plot results
 
 ---
 
@@ -184,21 +185,11 @@ pip install -r requirements.txt
 
 ### Running Benchmarks and Generating Plots
 
-The `run_executables` scripts automatically:
+The `run_project` scripts automatically:
 1. Build and run all sorting algorithm executables
 2. Save benchmark results to `data/benchmark.csv`
 3. Set up Python virtual environment (if needed)
 4. Generate visualization plots in `plots/` directory
-
-#### On macOS / Linux
-```bash
-bash run_executables.sh
-```
-
-#### On Windows (PowerShell)
-```powershell
-.\run_executables.ps1
-```
 
 ### Manual Plot Generation
 
@@ -211,10 +202,6 @@ source venv/bin/activate  # On Windows: .\venv\Scripts\Activate.ps1
 # Run plotting script
 python plots/plot_results.py
 ```
-
-### Generated Plots
-
-TBD
 
 ---
 
