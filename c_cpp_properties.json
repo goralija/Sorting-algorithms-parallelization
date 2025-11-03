@@ -1,0 +1,19 @@
+{
+    "configurations": [
+      {
+        "name": "Mac",
+        "intelliSenseMode": "macos-clang-x64",
+        "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
+        "includePath": [
+          "${workspaceFolder}/**",
+          "/opt/homebrew/opt/llvm/include",
+          "/opt/homebrew/opt/llvm/include/c++/v1"
+        ],
+        "defines": [
+          "_OPENMP"
+        ]
+      }
+    ],
+    "version": 4
+  }
+  

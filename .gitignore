@@ -47,3 +47,5 @@ data/*.csv
 data/*.log
 
 *hash*
+
+Makefile

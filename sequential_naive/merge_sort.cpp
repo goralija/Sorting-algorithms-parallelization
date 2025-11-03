@@ -1,7 +1,7 @@
 // Merge sort in C++
 #include <iostream>
 #include <vector>
-#include "../include/main_template.hpp"
+#include "main_template.hpp"
 
 using namespace std;
 
