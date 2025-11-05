@@ -7,8 +7,11 @@ BUILD_DIR="build"
 DATA_DIR="data"
 HASH_FILE="${DATA_DIR}/last_run_hashes.txt"
 OUTFILE="${DATA_DIR}/benchmark.csv"
-SIZES=(10000 5000000 50000000 500000000)
-TYPES=("random" "sorted" "reversed" "nearly_sorted" "few_unique")
+SIZES=(16384 8388608 67108864 536870912) # 2^14, 2^23, 2^26, 2^29 - stepeni broja 2 zbog bitonic sort
+#TYPES=("random" "sorted" "reversed" "nearly_sorted" "few_unique")
+##test
+TYPES=("random")
+
 
 CORES=$(sysctl -n hw.logicalcpu)
 
