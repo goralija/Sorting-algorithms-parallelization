@@ -7,7 +7,7 @@ BUILD_DIR="build"
 DATA_DIR="data"
 HASH_FILE="${DATA_DIR}/last_run_hashes.txt"
 OUTFILE="${DATA_DIR}/benchmark.csv"
-SIZES=(16384 8388608 67108864 536870912) # 2^14, 2^23, 2^26, 2^29 - stepeni broja 2 zbog bitonic sort
+SIZES=( 67108864 ) # 2^14 16384, 2^23 8388608, 2^26, 2^29 536870912 - stepeni broja 2 zbog bitonic sort
 #TYPES=("random" "sorted" "reversed" "nearly_sorted" "few_unique")
 ##test
 TYPES=("random")
@@ -61,6 +61,7 @@ for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
             echo "⏭️  Skipping unchanged: $exe_name"
 
             # Ako postoji stari benchmark, kopiraj rezultate
+            echo "  🔄 Copying previous results for: $exe_name"
             if [[ -n "${LATEST_BACKUP}" ]]; then
                 grep "^${exe_name}," "${LATEST_BACKUP}" >> "${OUTFILE}"
             fi
