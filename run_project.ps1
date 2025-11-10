@@ -2,12 +2,35 @@
 # Rebuilds all executables, runs only changed ones, and logs results
 # Copies results of unchanged executables from previous benchmark
 
+$ConfigFile = "config.yaml"
+$ExampleFile = "config.yaml.example"
+
+if (-not (Test-Path $ConfigFile)) {
+    Write-Host "⚠️  $ConfigFile not found, using $ExampleFile instead."
+    $ConfigFile = $ExampleFile
+}
+
+# Check if YAML support exists (PowerShell 7+ has ConvertFrom-Yaml)
+if (-not (Get-Command ConvertFrom-Yaml -ErrorAction SilentlyContinue)) {
+    Write-Host "⚠️  ConvertFrom-Yaml not available. Install module:"
+    Write-Host "   Install-Module powershell-yaml -Scope CurrentUser"
+    exit 1
+}
+
+# Load config
+$config = Get-Content $ConfigFile | ConvertFrom-Yaml
+
+$Sizes = $config.sizes
+$Types = $config.types
+
+Write-Host "📘 Loaded configuration:"
+Write-Host "  Sizes: $($Sizes -join ', ')"
+Write-Host "  Types: $($Types -join ', ')"
+
 $BuildDir = "build"
 $DataDir = "data"
 $HashFile = "$DataDir\last_run_hashes.txt"
 $OutFile = "$DataDir\benchmark.csv"
-$Sizes = @(10000, 5000000, 50000000, 500000000)
-$Types = @("random", "sorted", "reversed", "nearly_sorted", "few_unique")
 
 # Detect number of CPU cores
 $Cores = [Environment]::ProcessorCount

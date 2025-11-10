@@ -3,15 +3,33 @@
 # Rebuilds all executables, runs only changed ones, and logs results
 # Adds benchmarking for multiple array types
 
+CONFIG_FILE="config.yaml"
+EXAMPLE_FILE="config.yaml.example"
+
+# Load configuration from YAML
+if [[ ! -f "${CONFIG_FILE}" ]]; then
+    echo "⚠️  ${CONFIG_FILE} not found, using ${EXAMPLE_FILE} instead."
+    CONFIG_FILE="${EXAMPLE_FILE}"
+fi
+
+if ! command -v yq &> /dev/null; then
+    echo "⚠️  'yq' is not installed. Install it via:"
+    echo "   brew install yq  (macOS) or sudo apt install yq (Linux)"
+    exit 1
+fi
+
+# Read sizes and types from YAML
+SIZES=($(yq -r '.sizes[]' "${CONFIG_FILE}"))
+TYPES=($(yq -r '.types[]' "${CONFIG_FILE}"))
+
+echo "📘 Loaded configuration:"
+echo "  SIZES: ${SIZES[@]}"
+echo "  TYPES: ${TYPES[@]}"
+
 BUILD_DIR="build"
 DATA_DIR="data"
 HASH_FILE="${DATA_DIR}/last_run_hashes.txt"
 OUTFILE="${DATA_DIR}/benchmark.csv"
-SIZES=(16384 8388608 67108864 536870912) # 2^14, 2^23, 2^26, 2^29 - stepeni broja 2 zbog bitonic sort
-#TYPES=("random" "sorted" "reversed" "nearly_sorted" "few_unique")
-##test
-TYPES=("random")
-
 
 CORES=$(sysctl -n hw.logicalcpu)
 
@@ -61,6 +79,7 @@ for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
             echo "⏭️  Skipping unchanged: $exe_name"
 
             # Ako postoji stari benchmark, kopiraj rezultate
+            echo "  🔄 Copying previous results for: $exe_name"
             if [[ -n "${LATEST_BACKUP}" ]]; then
                 grep "^${exe_name}," "${LATEST_BACKUP}" >> "${OUTFILE}"
             fi
