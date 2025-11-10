@@ -57,3 +57,6 @@ plots/**/*.png
 plots/**/*.jpg
 plots/**/*.jpeg
 plots/**/*.pdf
+
+# Configuration files
+config.yaml
