@@ -99,7 +99,7 @@ if ($LASTEXITCODE -eq 0) {
 
 # 3️⃣ Build using all CPU cores
 Write-Host "⚙️ Building project with all available cores ($Cores)..."
-cmake --build . --config Release --parallel #$Cores
+cmake --build . --config Release --parallel $Cores
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Build failed."
@@ -142,7 +142,7 @@ $newHashes = @{}
 # Compute new hashes
 Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|parallel_cpu_)' } | ForEach-Object {
     $exePath = $_.FullName
-    $exeName = $_.Name
+    $exeName = [System.IO.Path]::GetFileNameWithoutExtension($_.Name)
     $hash = (Get-FileHash $exePath -Algorithm MD5).Hash
     $newHashes[$exePath] = $hash
 
