@@ -186,6 +186,16 @@ Write-Host "✅ Benchmark finished. Results saved in $OutFile"
 # Python plotting setup and execution
 # ============================================================================
 
+# Detect Windows Python (skip MSYS2 Python)
+$winPython = Get-Command python -ErrorAction SilentlyContinue | Where-Object { $_.Source -notmatch "msys64" }
+if (-not $winPython) {
+    Write-Host "⚠️  Could not find Windows Python 3.10+. Skipping plotting."
+    $RunPlots = $false
+} else {
+    $RunPlots = $true
+    $PythonExe = $winPython.Source
+}
+
 Write-Host ""
 Write-Host ("=" * 60)
 Write-Host "📊 Setting up Python environment for plotting..."
@@ -206,33 +216,31 @@ $pythonVersion = & python --version 2>&1
 Write-Host "✅ Found $pythonVersion"
 
 # Create virtual environment if it doesn't exist
-if (-not (Test-Path $VenvDir)) {
+if (-not (Test-Path $VenvDir) -and $RunPlots) {
     Write-Host "📦 Creating Python virtual environment..."
-    python -m venv $VenvDir
+    & $PythonExe -m venv $VenvDir
     Write-Host "✅ Virtual environment created"
 }
 
 # Activate virtual environment
 Write-Host "🔄 Activating virtual environment..."
-& "$VenvDir\Scripts\Activate.ps1"
+# If activation fails, just call Python from venv directly
+$VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 
-# Install/update dependencies
-if (Test-Path "requirements.txt") {
-    Write-Host "📥 Installing Python dependencies..."
-    python -m pip install --quiet --upgrade pip
-    pip install --quiet -r requirements.txt
-    Write-Host "✅ Dependencies installed"
-} else {
-    Write-Host "⚠️  requirements.txt not found. Installing basic packages..."
-    pip install --quiet matplotlib pandas numpy
+# Install dependencies
+if ((Test-Path "requirements.txt") -and $RunPlots) {
+    & $VenvPython -m pip install --upgrade pip
+    & $VenvPython -m pip install -r requirements.txt
+} elseif ($RunPlots) {
+    & $VenvPython -m pip install matplotlib pandas numpy
 }
 
 # Run plotting script
-if (Test-Path $PlotsScript) {
+if ($RunPlots -and (Test-Path $PlotsScript)) {
     Write-Host ""
     Write-Host "🎨 Generating plots..."
-    python $PlotsScript
-    
+    & $VenvPython $PlotsScript
+
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
         Write-Host ("=" * 60)
@@ -242,8 +250,6 @@ if (Test-Path $PlotsScript) {
     } else {
         Write-Host "⚠️  Plot generation encountered errors."
     }
-} else {
-    Write-Host "⚠️  Plotting script not found: $PlotsScript"
 }
 
 # Note: Virtual environment will be deactivated when script exits

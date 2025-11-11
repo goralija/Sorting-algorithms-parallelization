@@ -29,7 +29,7 @@ def load_benchmark_data(filepath):
         return None
     
     try:
-        df = pd.read_csv(filepath)
+        df = pd.read_csv(filepath, encoding="utf-16")
         print(f"✅ Loaded {len(df)} benchmark results from {filepath}")
         return df
     except Exception as e:
