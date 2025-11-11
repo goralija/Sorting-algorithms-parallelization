@@ -99,7 +99,7 @@ if ($LASTEXITCODE -eq 0) {
 
 # 3️⃣ Build using all CPU cores
 Write-Host "⚙️ Building project with all available cores ($Cores)..."
-cmake --build . --config Release --parallel 
+cmake --build . --config Release --parallel $Cores
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Build failed."
