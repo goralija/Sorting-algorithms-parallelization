@@ -1,4 +1,4 @@
-# run_executables.ps1
+﻿# run_executables.ps1
 # Rebuilds all executables, runs only changed ones, and logs results
 # Copies results of unchanged executables from previous benchmark
 
@@ -36,12 +36,79 @@ $OutFile = "$DataDir\benchmark.csv"
 $Cores = [Environment]::ProcessorCount
 
 Write-Host "🔧 Rebuilding executables..."
-if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
-New-Item -ItemType Directory -Path $BuildDir | Out-Null
+if (Test-Path $BuildDir) { 
+    # pokušaj nekoliko puta zbog "used by another process" grešaka
+    Write-Host "🗑️  Removing existing build directory..."
+    for ($i=0; $i -lt 5; $i++) {
+        try {
+            Remove-Item -Recurse -Force $BuildDir
+            break
+        } catch {
+            Start-Sleep -Milliseconds 200
+        }
+    }
+}
+if (-Not (Test-Path $BuildDir)) { New-Item -ItemType Directory -Path $BuildDir | Out-Null }
+
 Push-Location $BuildDir
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . --config Release -- /m:$Cores
+
+Write-Host "🧱 Configuring CMake build..."
+
+# 1️⃣ Preferred configuration (GCC + Ninja)
+Write-Host "🔧 Trying preferred configuration (Ninja + GCC)..."
+$preferredCommand = 'cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=C:/msys64/mingw64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/mingw64/bin/g++.exe -DUSE_OPENMP=ON -DCMAKE_CXX_FLAGS="-O3 -march=native -mavx2 -mavx512f -fopenmp" ..'
+Invoke-Expression $preferredCommand
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "✅ Preferred configuration succeeded!"
+} else {
+    Write-Host "❌ Preferred configuration failed, trying alternative generators..."
+    Remove-Item CMakeCache.txt -ErrorAction SilentlyContinue
+
+    # 2️⃣ Fallback options in order of preference
+    $generators = @(
+        @("MinGW Makefiles", 'cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release'),
+        @("Ninja with Clang", 'cmake .. -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release'),
+        @("Visual Studio Clang", 'cmake .. -G "Visual Studio 17 2022" -A x64 -T ClangCL'),
+        @("Default", 'cmake .. -DCMAKE_BUILD_TYPE=Release')
+    )
+
+    $success = $false
+    foreach ($generator in $generators) {
+        $name = $generator[0]
+        $command = $generator[1]
+        Write-Host "Trying $name..."
+        Invoke-Expression $command
+
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "✅ Configuration successful with $name"
+            $success = $true
+            break
+        } else {
+            Write-Host "❌ $name failed, trying next..."
+            Remove-Item CMakeCache.txt -ErrorAction SilentlyContinue
+        }
+    }
+
+    if (-not $success) {
+        Write-Host "❌ All CMake configuration attempts failed."
+        Pop-Location
+        exit 1
+    }
+}
+
+# 3️⃣ Build using all CPU cores
+Write-Host "⚙️ Building project with all available cores ($Cores)..."
+cmake --build . --config Release --parallel #$Cores
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Build failed."
+    Pop-Location
+    exit 1
+}
+
 Pop-Location
+Write-Host "✅ Build completed successfully!"
 
 if (-Not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
 

@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
-project(SortingAlgorithmsParallelization)
+project(SortingAlgorithmsParallelization LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # --- Optimizacija ---
 # -O3 za agresivne optimizacije
