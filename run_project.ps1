@@ -165,11 +165,7 @@ Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|par
             Write-Host "  -> Type: $type | Size: $size"
             $output = & $exePath $size $type 2>&1
 
-            Write-Host "     Output:"
-            Write-Host $output
-            Write-Host ""
-            
-            if ($output -match "❌ Error") {
+            if ($output -match "Error: Array is NOT sorted") {
                 Write-Host "❗ Skipping invalid result for $exeName (unsorted output)"
                 return
             }
