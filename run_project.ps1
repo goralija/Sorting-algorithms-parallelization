@@ -45,15 +45,15 @@ Pop-Location
 
 if (-Not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
 
-# Find latest benchmark backup
-$LatestBackup = Get-ChildItem -Path $DataDir -Filter "benchmark_backup_*.csv" |
-    Sort-Object LastWriteTime -Descending | Select-Object -First 1
-
 # Backup current benchmark if exists
 if (Test-Path $OutFile) {
     $timestamp = Get-Date -UFormat %s
     Move-Item $OutFile "$DataDir\benchmark_backup_$timestamp.csv"
 }
+
+# Find latest benchmark backup
+$LatestBackup = Get-ChildItem -Path $DataDir -Filter "benchmark_backup_*.csv" |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
 # Initialize new CSV
 "Algorithm,ArraySize,ArrayType,TimeMs" | Out-File $OutFile

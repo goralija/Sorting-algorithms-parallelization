@@ -45,13 +45,13 @@ cd ..
 
 mkdir -p "${DATA_DIR}"
 
-# Find latest benchmark backup (if exists)
-LATEST_BACKUP=$(ls -t ${DATA_DIR}/benchmark_backup_*.csv 2>/dev/null | head -n 1)
-
 # Backup current benchmark if it exists
 if [[ -f "${OUTFILE}" ]]; then
     mv "${OUTFILE}" "${DATA_DIR}/benchmark_backup_$(date +%s).csv"
 fi
+
+# Find latest benchmark backup (if exists)
+LATEST_BACKUP=$(ls -t ${DATA_DIR}/benchmark_backup_*.csv 2>/dev/null | head -n 1)
 
 # Initialize new CSV
 echo "Algorithm,ArraySize,ArrayType,TimeMs" > "${OUTFILE}"
