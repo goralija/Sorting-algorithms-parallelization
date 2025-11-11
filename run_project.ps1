@@ -99,7 +99,7 @@ if ($LASTEXITCODE -eq 0) {
 
 # 3️⃣ Build using all CPU cores
 Write-Host "⚙️ Building project with all available cores ($Cores)..."
-cmake --build . --config Release --parallel $Cores
+cmake --build . --config Release --parallel 
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Build failed."
@@ -164,7 +164,17 @@ Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|par
         foreach ($size in $Sizes) {
             Write-Host "  -> Type: $type | Size: $size"
             $output = & $exePath $size $type 2>&1
+
+            Write-Host "     Output:"
+            Write-Host $output
+            Write-Host ""
+            
+            if ($output -match "❌ Error") {
+                Write-Host "❗ Skipping invalid result for $exeName (unsorted output)"
+                return
+            }
             $timeLine = ($output | Select-String -Pattern "Execution time").Line
+
             if ($timeLine) {
                 $timeMs = ($timeLine -split " ")[-1]
                 "$exeName,$size,$type,$timeMs" | Out-File $OutFile -Append
