@@ -16,17 +16,18 @@ The goal is to **benchmark execution times**, **visualize speedups**, and analyz
 
 ```
 .
-├── README.md              # Developer guide
-├── data                   # Input arrays and benchmark outputs (CSV or JSON)
-├── sequential              # Sequential sorting algorithm implementations
-├── parallel_cpu            # CPU-parallel sorting implementations
-├── parallel_gpu            # Placeholder for GPU-parallel implementations (future work)
-├── plots                  # Scripts / data for visualization
-├── include                # Shared headers and utilities
-├── build                  # Compiled output files
-├── run_project.sh.        # Bash script to run all executables, save benchmark and plot results
-├── run_project.ps1    # PowerShell equivalent for Windows
-└── CMakeLists.txt         # Project build configuration
+├── README.md                    # Developer guide
+├── data                         # Input arrays and benchmark outputs (CSV or JSON)
+├── sequential                   # Sequential sorting algorithm implementations
+├── parallel_cpu                 # CPU-parallel sorting implementations
+├── parallel_gpu                 # Placeholder for GPU-parallel implementations (future work)
+├── plots                        # Scripts / data for visualization
+├── include                      # Shared headers and utilities
+├── build                        # Compiled output files
+├── run_project.sh               # Bash script to run all executables, save results
+├── run_project.ps1              # PowerShell equivalent for Windows
+├── run_plots_generating.ps1     # PowerShell script for generating plots
+└── CMakeLists.txt               # Project build configuration
 
 ```
 
@@ -50,9 +51,9 @@ The goal is to **benchmark execution times**, **visualize speedups**, and analyz
 
 ---
 
-### Environment Setup
+# Environment Setup
 
-#### On macOS / Linux
+## On macOS / Linux
 
 > **Note (macOS M1/M2):** Apple Clang lacks OpenMP support. Install Homebrew LLVM or GCC to enable OpenMP:
 > 
@@ -75,14 +76,77 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/c
 make -j$(nproc)
 ```
 
-#### On Windows (PowerShell)
+## On Windows (PowerShell)
+
+### 1. Install MSYS2
+
+1. Download and install MSYS2: [https://www.msys2.org/](https://www.msys2.org/)
+2. Open **MSYS2 MSYS** terminal and update packages:
+
+```bash
+pacman -Syu
+```
+
+3. Close the terminal, reopen **MSYS2 MSYS**, and install required packages:
+
+```bash
+pacman -S --needed base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-clang mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake mingw-w64-x86_64-python
+```
+
+> This provides gcc, g++, cmake, make, and Python.
+
+---
+
+### 2. Open MinGW64 Shell
+
+- Launch **MSYS2 MinGW 64-bit** shell from Start Menu.
+- This ensures MinGW64 compiler and tools are available in PATH.
+
+---
+
+### 3. Configure VS Code Terminal
+
+1. Open VS Code → Settings → Terminal → Integrated → Profiles
+2. Add a new profile for MinGW64:
+
+```json
+"MSYS2 MinGW64": {
+    "path": "C:\\msys64\\mingw64.exe"
+}
+```
+
+3. Open a terminal in VS Code using **MSYS2 MinGW64**.
+
+---
+
+### 4. Clone and Run Project
 
 ```bash
 git clone https://github.com/goralija/Sorting-algorithms-parallelization.git
 cd Sorting-algorithms-parallelization
-mkdir build && cd build
-cmake -G "Visual Studio 17 2022" -A x64 -DUSE_OPENMP=ON ..
-cmake --build . --config Release
+powershell ./run_project.ps1
+```
+
+- This will:
+  1. Build all C++ executables using MinGW64 + CMake
+  2. Run benchmarks for sequential and parallel CPU algorithms
+  3. Save results in `data/benchmark.csv`
+  4. Automatically generate plots in `plots/` (requires Python 3.10+)
+
+> Always use **MSYS2 MinGW64 shell** for building and running; do not run CMake directly in PowerShell.
+
+---
+
+### 5. Python Environment
+
+- `run_project.ps1` automatically creates a Python virtual environment `venv/` if needed.
+- Required packages: `matplotlib`, `pandas`, `numpy`
+- No manual activation is required when using `run_project.ps1`.
+
+#### Manual Activation (optional)
+```powershell
+.venv\Scripts\Activate.ps1
+python plots/plot_results.py
 ```
 
 ---
@@ -100,10 +164,11 @@ Instead of running each binary manually, you can use the provided scripts:
 bash run_project.sh
 ```
 
-### Windows (PowerShell)
-```powershell
-.\run_project.ps1
+### Windows (MSYS MINGW64 SHELL)
 ```
+powershell .\run_project.ps1
+```
+> Always use **MSYS2 MinGW64 shell** for building and running; do not run CMake directly in PowerShell.
 
 These scripts:
 

@@ -1,4 +1,4 @@
-# run_executables.ps1
+﻿# run_executables.ps1
 # Rebuilds all executables, runs only changed ones, and logs results
 # Copies results of unchanged executables from previous benchmark
 
@@ -36,12 +36,79 @@ $OutFile = "$DataDir\benchmark.csv"
 $Cores = [Environment]::ProcessorCount
 
 Write-Host "🔧 Rebuilding executables..."
-if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
-New-Item -ItemType Directory -Path $BuildDir | Out-Null
+if (Test-Path $BuildDir) { 
+    # pokušaj nekoliko puta zbog "used by another process" grešaka
+    Write-Host "🗑️  Removing existing build directory..."
+    for ($i=0; $i -lt 5; $i++) {
+        try {
+            Remove-Item -Recurse -Force $BuildDir
+            break
+        } catch {
+            Start-Sleep -Milliseconds 200
+        }
+    }
+}
+if (-Not (Test-Path $BuildDir)) { New-Item -ItemType Directory -Path $BuildDir | Out-Null }
+
 Push-Location $BuildDir
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . --config Release -- /m:$Cores
+
+Write-Host "🧱 Configuring CMake build..."
+
+# 1️⃣ Preferred configuration (GCC + Ninja)
+Write-Host "🔧 Trying preferred configuration (Ninja + GCC)..."
+$preferredCommand = 'cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=C:/msys64/mingw64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/mingw64/bin/g++.exe -DUSE_OPENMP=ON -DCMAKE_CXX_FLAGS="-O3 -march=native -mavx2 -mavx512f -fopenmp" ..'
+Invoke-Expression $preferredCommand
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "✅ Preferred configuration succeeded!"
+} else {
+    Write-Host "❌ Preferred configuration failed, trying alternative generators..."
+    Remove-Item CMakeCache.txt -ErrorAction SilentlyContinue
+
+    # 2️⃣ Fallback options in order of preference
+    $generators = @(
+        @("MinGW Makefiles", 'cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release'),
+        @("Ninja with Clang", 'cmake .. -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release'),
+        @("Visual Studio Clang", 'cmake .. -G "Visual Studio 17 2022" -A x64 -T ClangCL'),
+        @("Default", 'cmake .. -DCMAKE_BUILD_TYPE=Release')
+    )
+
+    $success = $false
+    foreach ($generator in $generators) {
+        $name = $generator[0]
+        $command = $generator[1]
+        Write-Host "Trying $name..."
+        Invoke-Expression $command
+
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "✅ Configuration successful with $name"
+            $success = $true
+            break
+        } else {
+            Write-Host "❌ $name failed, trying next..."
+            Remove-Item CMakeCache.txt -ErrorAction SilentlyContinue
+        }
+    }
+
+    if (-not $success) {
+        Write-Host "❌ All CMake configuration attempts failed."
+        Pop-Location
+        exit 1
+    }
+}
+
+# 3️⃣ Build using all CPU cores
+Write-Host "⚙️ Building project with all available cores ($Cores)..."
+cmake --build . --config Release --parallel $Cores
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Build failed."
+    Pop-Location
+    exit 1
+}
+
 Pop-Location
+Write-Host "✅ Build completed successfully!"
 
 if (-Not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
 
@@ -75,7 +142,7 @@ $newHashes = @{}
 # Compute new hashes
 Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|parallel_cpu_)' } | ForEach-Object {
     $exePath = $_.FullName
-    $exeName = $_.Name
+    $exeName = [System.IO.Path]::GetFileNameWithoutExtension($_.Name)
     $hash = (Get-FileHash $exePath -Algorithm MD5).Hash
     $newHashes[$exePath] = $hash
 
@@ -119,6 +186,16 @@ Write-Host "✅ Benchmark finished. Results saved in $OutFile"
 # Python plotting setup and execution
 # ============================================================================
 
+# Detect Windows Python (skip MSYS2 Python)
+$winPython = Get-Command python -ErrorAction SilentlyContinue | Where-Object { $_.Source -notmatch "msys64" }
+if (-not $winPython) {
+    Write-Host "⚠️  Could not find Windows Python 3.10+. Skipping plotting."
+    $RunPlots = $false
+} else {
+    $RunPlots = $true
+    $PythonExe = $winPython.Source
+}
+
 Write-Host ""
 Write-Host ("=" * 60)
 Write-Host "📊 Setting up Python environment for plotting..."
@@ -139,33 +216,31 @@ $pythonVersion = & python --version 2>&1
 Write-Host "✅ Found $pythonVersion"
 
 # Create virtual environment if it doesn't exist
-if (-not (Test-Path $VenvDir)) {
+if (-not (Test-Path $VenvDir) -and $RunPlots) {
     Write-Host "📦 Creating Python virtual environment..."
-    python -m venv $VenvDir
+    & $PythonExe -m venv $VenvDir
     Write-Host "✅ Virtual environment created"
 }
 
 # Activate virtual environment
 Write-Host "🔄 Activating virtual environment..."
-& "$VenvDir\Scripts\Activate.ps1"
+# If activation fails, just call Python from venv directly
+$VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 
-# Install/update dependencies
-if (Test-Path "requirements.txt") {
-    Write-Host "📥 Installing Python dependencies..."
-    python -m pip install --quiet --upgrade pip
-    pip install --quiet -r requirements.txt
-    Write-Host "✅ Dependencies installed"
-} else {
-    Write-Host "⚠️  requirements.txt not found. Installing basic packages..."
-    pip install --quiet matplotlib pandas numpy
+# Install dependencies
+if ((Test-Path "requirements.txt") -and $RunPlots) {
+    & $VenvPython -m pip install --upgrade pip
+    & $VenvPython -m pip install -r requirements.txt
+} elseif ($RunPlots) {
+    & $VenvPython -m pip install matplotlib pandas numpy
 }
 
 # Run plotting script
-if (Test-Path $PlotsScript) {
+if ($RunPlots -and (Test-Path $PlotsScript)) {
     Write-Host ""
     Write-Host "🎨 Generating plots..."
-    python $PlotsScript
-    
+    & $VenvPython $PlotsScript
+
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
         Write-Host ("=" * 60)
@@ -175,8 +250,6 @@ if (Test-Path $PlotsScript) {
     } else {
         Write-Host "⚠️  Plot generation encountered errors."
     }
-} else {
-    Write-Host "⚠️  Plotting script not found: $PlotsScript"
 }
 
 # Note: Virtual environment will be deactivated when script exits
