@@ -180,6 +180,7 @@ Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|par
                 "$exeName,$size,$type,$timeMs" | Out-File $OutFile -Append
             } else {
                 Write-Host "⚠️  Warning: Could not parse time output for $exeName ($size, $type)"
+                Write-Host ""
             }
         }
     }
