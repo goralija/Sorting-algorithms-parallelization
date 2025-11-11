@@ -1,8 +1,7 @@
-# run_executables.ps1
-# Rebuilds all executables, runs only changed ones, and logs results
-# Copies results of unchanged executables from previous benchmark
+﻿# run_executables.ps1
+# Rebuilds all executables using GCC, runs only changed ones, and logs results
 
-$BuildDir = "build"
+$BuildDir = "build_gcc"
 $DataDir = "data"
 $HashFile = "$DataDir\last_run_hashes.txt"
 $OutFile = "$DataDir\benchmark.csv"
@@ -12,27 +11,36 @@ $Types = @("random", "sorted", "reversed", "nearly_sorted", "few_unique")
 # Detect number of CPU cores
 $Cores = [Environment]::ProcessorCount
 
-Write-Host "🔧 Rebuilding executables..."
-if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
-New-Item -ItemType Directory -Path $BuildDir | Out-Null
+Write-Host "Rebuilding executables using GCC..."
+if (Test-Path $BuildDir) { 
+    # pokušaj nekoliko puta zbog "used by another process" grešaka
+    for ($i=0; $i -lt 5; $i++) {
+        try {
+            Remove-Item -Recurse -Force $BuildDir
+            break
+        } catch {
+            Start-Sleep -Milliseconds 200
+        }
+    }
+}
+if (-Not (Test-Path $BuildDir)) { New-Item -ItemType Directory -Path $BuildDir | Out-Null }
+
 Push-Location $BuildDir
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . --config Release -- /m:$Cores
+# FORCE GCC generator
+cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=C:/msys64/mingw64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/mingw64/bin/g++.exe -DUSE_OPENMP=ON -DCMAKE_CXX_FLAGS="-O3 -march=native -mavx2 -mavx512f -fopenmp" ..
+cmake --build . --config Release #-- /m:$Cores
 Pop-Location
 
 if (-Not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
 
-# Find latest benchmark backup
-$LatestBackup = Get-ChildItem -Path $DataDir -Filter "benchmark_backup_*.csv" |
-    Sort-Object LastWriteTime -Descending | Select-Object -First 1
-
-# Backup current benchmark if exists
+# Backup previous benchmark
+$LatestBackup = Get-ChildItem -Path $DataDir -Filter "benchmark_backup_*.csv" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (Test-Path $OutFile) {
     $timestamp = Get-Date -UFormat %s
     Move-Item $OutFile "$DataDir\benchmark_backup_$timestamp.csv"
 }
 
-# Initialize new CSV
+# Initialize CSV
 "Algorithm,ArraySize,ArrayType,TimeMs" | Out-File $OutFile
 
 # Load old hashes
@@ -40,16 +48,13 @@ $oldHashes = @{}
 if (Test-Path $HashFile) {
     Get-Content $HashFile | ForEach-Object {
         $parts = $_ -split " "
-        if ($parts.Length -eq 2) {
-            $oldHashes[$parts[0]] = $parts[1]
-        }
+        if ($parts.Length -eq 2) { $oldHashes[$parts[0]] = $parts[1] }
     }
 }
 
-# Temporary hash storage
 $newHashes = @{}
 
-# Compute new hashes
+# Run executables
 Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|parallel_cpu_)' } | ForEach-Object {
     $exePath = $_.FullName
     $exeName = $_.Name
@@ -59,102 +64,71 @@ Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|par
     $oldHash = if ($oldHashes.ContainsKey($exePath)) { $oldHashes[$exePath] } else { "" }
 
     if ($oldHash -eq $hash) {
-        Write-Host "⏭️  Skipping unchanged: $exeName"
+        Write-Host "Skipping unchanged executable: $exeName"
         if ($LatestBackup) {
             $lines = Get-Content $LatestBackup.FullName | Where-Object { $_ -match "^$exeName," }
-            if ($lines) {
-                $lines | Out-File $OutFile -Append
-            }
+            if ($lines) { $lines | Out-File $OutFile -Append }
         }
         return
     }
 
-    Write-Host "🚀 Running updated executable: $exeName"
+    Write-Host "Running updated executable: $exeName"
     foreach ($type in $Types) {
         foreach ($size in $Sizes) {
-            Write-Host "  -> Type: $type | Size: $size"
+            Write-Host ("  Type: {0} | Size: {1}" -f $type, $size)
             $output = & $exePath $size $type 2>&1
             $timeLine = ($output | Select-String -Pattern "Execution time").Line
             if ($timeLine) {
                 $timeMs = ($timeLine -split " ")[-1]
                 "$exeName,$size,$type,$timeMs" | Out-File $OutFile -Append
             } else {
-                Write-Host "⚠️  Warning: Could not parse time output for $exeName ($size, $type)"
+                Write-Host ("Warning: Could not parse time output for {0} ({1}, {2})" -f $exeName, $size, $type)
             }
         }
     }
 }
 
 # Save new hashes
-$newHashes.GetEnumerator() | ForEach-Object {
-    "$($_.Key) $($_.Value)"
-} | Out-File $HashFile
+$newHashes.GetEnumerator() | ForEach-Object { "$($_.Key) $($_.Value)" } | Out-File $HashFile
 
-Write-Host "✅ Benchmark finished. Results saved in $OutFile"
+Write-Host "Benchmark finished. Results saved in $OutFile"
 
-# ============================================================================
-# Python plotting setup and execution
-# ============================================================================
-
-Write-Host ""
-Write-Host ("=" * 60)
-Write-Host "📊 Setting up Python environment for plotting..."
-Write-Host ("=" * 60)
+# ======================
+# Python plotting
+# ======================
 
 $VenvDir = "venv"
 $PlotsScript = "plots/plot_results.py"
 
-# Check if Python is available
 $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
 if (-not $pythonCmd) {
-    Write-Host "⚠️  Python not found. Skipping plot generation."
-    Write-Host "   Install Python 3.10+ to enable visualization."
+    Write-Host "Python not found. Skipping plot generation."
     exit 0
 }
 
 $pythonVersion = & python --version 2>&1
-Write-Host "✅ Found $pythonVersion"
+Write-Host "Found $pythonVersion"
 
-# Create virtual environment if it doesn't exist
 if (-not (Test-Path $VenvDir)) {
-    Write-Host "📦 Creating Python virtual environment..."
     python -m venv $VenvDir
-    Write-Host "✅ Virtual environment created"
 }
 
-# Activate virtual environment
-Write-Host "🔄 Activating virtual environment..."
 & "$VenvDir\Scripts\Activate.ps1"
 
-# Install/update dependencies
 if (Test-Path "requirements.txt") {
-    Write-Host "📥 Installing Python dependencies..."
     python -m pip install --quiet --upgrade pip
     pip install --quiet -r requirements.txt
-    Write-Host "✅ Dependencies installed"
 } else {
-    Write-Host "⚠️  requirements.txt not found. Installing basic packages..."
     pip install --quiet matplotlib pandas numpy
 }
 
-# Run plotting script
 if (Test-Path $PlotsScript) {
-    Write-Host ""
-    Write-Host "🎨 Generating plots..."
     python $PlotsScript
-    
     if ($LASTEXITCODE -eq 0) {
-        Write-Host ""
-        Write-Host ("=" * 60)
-        Write-Host "✅ SUCCESS! All plots generated."
-        Write-Host "📂 Check the plots/ directory for visualization results."
-        Write-Host ("=" * 60)
+        Write-Host "Plots generated successfully. Check the plots/ directory."
     } else {
-        Write-Host "⚠️  Plot generation encountered errors."
+        Write-Host "Plot generation encountered errors."
     }
 } else {
-    Write-Host "⚠️  Plotting script not found: $PlotsScript"
+    Write-Host "Plotting script not found: $PlotsScript"
 }
-
-# Note: Virtual environment will be deactivated when script exits
-
