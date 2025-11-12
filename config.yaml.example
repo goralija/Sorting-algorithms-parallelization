@@ -1,4 +1,5 @@
 sizes: [16384, 8388608, 67108864]
 types: [random, sorted, reversed, nearly_sorted, few_unique]
 seed: 42
-print_array: true   # true or false
+print_array: false   # true or false, potrebno drzati na false
+# radi izbjegavanja pristupanja nizu prije sortiranja, I/O overheada... osim u iznimnim debugging slucajevima
