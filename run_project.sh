@@ -91,7 +91,21 @@ for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
             for size in "${SIZES[@]}"; do
                 echo "  -> Type: $type | Size: $size"
                 output=$("$exe" "$size" "$type" 2>&1)
+                
+                # Check if output contains sorting error
+                if echo "$output" | grep -q "Error: Array is NOT sorted"; then
+                    echo "❗ Skipping invalid result for $exe_name (unsorted output)"
+                    continue
+                fi
+                
                 time_ms=$(echo "$output" | grep "Execution time" | awk '{print $4}')
+                
+                # Verify we got a valid time measurement
+                if [[ -z "$time_ms" ]]; then
+                    echo "❗ No valid execution time found for $exe_name"
+                    continue
+                fi
+
                 echo "${exe_name},${size},${type},${time_ms}" >> "${OUTFILE}"
             done
         done
