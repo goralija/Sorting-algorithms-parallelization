@@ -164,12 +164,19 @@ Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|par
         foreach ($size in $Sizes) {
             Write-Host "  -> Type: $type | Size: $size"
             $output = & $exePath $size $type 2>&1
+
+            if ($output -match "Error: Array is NOT sorted") {
+                Write-Host "❗ Skipping invalid result for $exeName (unsorted output)"
+                return
+            }
             $timeLine = ($output | Select-String -Pattern "Execution time").Line
+
             if ($timeLine) {
                 $timeMs = ($timeLine -split " ")[-1]
                 "$exeName,$size,$type,$timeMs" | Out-File $OutFile -Append
             } else {
                 Write-Host "⚠️  Warning: Could not parse time output for $exeName ($size, $type)"
+                Write-Host ""
             }
         }
     }

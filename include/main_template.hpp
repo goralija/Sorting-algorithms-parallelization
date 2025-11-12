@@ -26,12 +26,26 @@ int run_sort(const std::string& algorithm_name, const std::string& mode, SortFun
     t.stop();
     double time_ms = t.ms();
 
+    // ✅ Verify that the array is sorted
+    bool sorted = std::is_sorted(arr.begin(), arr.end());
+    if (!sorted) {
+        std::cerr << "❌ Error: Array is NOT sorted after running " << algorithm_name << " (" << mode << ")\n";
+        // Optionally: write to a log file for debugging
+        std::ofstream log("../data/errors.log", std::ios::app);
+        if (log.is_open()) {
+            log << "Algorithm: " << algorithm_name << ", Mode: " << mode
+                << ", Size: " << n << ", Type: " << type << " → FAILED (unsorted)\n";
+        }
+        return 1; // Return non-zero to indicate error
+    }
+
     // Output
     std::cout << "Algorithm: " << algorithm_name << "\n";
     std::cout << "Mode: " << mode << "\n";
     std::cout << "Array size: " << n << "\n";
     std::cout << "Array type: " << type << "\n";
     std::cout << "Execution time (ms): " << time_ms << "\n";
+    std::cout << "✅ Verification: sorted = " << (sorted ? "true" : "false") << "\n";
 
     // Append results to CSV
     std::ofstream ofs("../data/benchmark.csv", std::ios::app);
