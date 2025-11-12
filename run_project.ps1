@@ -22,10 +22,14 @@ $config = Get-Content $ConfigFile | ConvertFrom-Yaml
 
 $Sizes = $config.sizes
 $Types = $config.types
+$Seed = if ($null -ne $config.seed) { [int]$config.seed } else { 12345 }
+$PrintArray = if ($null -ne $config.print_array) { [bool]$config.print_array } else { $false }
 
 Write-Host "📘 Loaded configuration:"
 Write-Host "  Sizes: $($Sizes -join ', ')"
 Write-Host "  Types: $($Types -join ', ')"
+Write-Host "  Seed: $Seed"
+Write-Host "  Print array: $PrintArray"
 
 $BuildDir = "build"
 $DataDir = "data"
@@ -163,20 +167,32 @@ Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|par
     foreach ($type in $Types) {
         foreach ($size in $Sizes) {
             Write-Host "  -> Type: $type | Size: $size"
-            $output = & $exePath $size $type 2>&1
+            # build arguments: size, type, seed, optional print flag
+            $args = @($size, $type, $Seed)
+            if ($PrintArray) { $args += "--print-array" }
+
+            # Run executable and capture output
+            $output = & $exePath @args 2>&1
+
+            # Print full output to console so array is visible for debugging
+            Write-Host "----- $exeName output start -----"
+            Write-Host $output
+            Write-Host "----- $exeName output end -----"
 
             if ($output -match "Error: Array is NOT sorted") {
                 Write-Host "❗ Skipping invalid result for $exeName (unsorted output)"
                 return
             }
+            # Parse time (still works even if array printed)
             $timeLine = ($output | Select-String -Pattern "Execution time").Line
 
             if ($timeLine) {
-                $timeMs = ($timeLine -split " ")[-1]
+                # take last token as ms (your existing format)
+                $tokens = $timeLine -split '\s+'
+                $timeMs = $tokens[-1]
                 "$exeName,$size,$type,$timeMs" | Out-File $OutFile -Append
             } else {
                 Write-Host "⚠️  Warning: Could not parse time output for $exeName ($size, $type)"
-                Write-Host ""
             }
         }
     }

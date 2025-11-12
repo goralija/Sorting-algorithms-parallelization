@@ -11,13 +11,27 @@
 template <typename SortFunc>
 int run_sort(const std::string& algorithm_name, const std::string& mode, SortFunc sort_function, int argc, char* argv[]) {
     // Parse CLI args
-    size_t n = 100000; // default
-    std::string type = "random";
+    size_t n = 100000;              // default
+    std::string type = "random";    // default
+    unsigned int seed = 12345u;     // default deterministic seed
+    bool print_array = false;       // default: don't print
+
     if (argc > 1) n = std::stoul(argv[1]);
     if (argc > 2) type = argv[2];
+    if (argc > 3) seed = static_cast<unsigned int>(std::stoul(argv[3]));
+    if (argc > 4) {
+        std::string flag = argv[4];
+        if (flag == "--print-array" || flag == "print" || flag == "-p") print_array = true;
+    }
 
-    // Generate array based on type
-    auto arr = generate_array(n, type);
+    // Generate array based on type and seed
+    auto arr = generate_array(n, type, seed);
+
+// Optionally print the initial array (full print for debugging; you can limit by max elements in print_vector)
+if (print_array) {
+    std::cout << std::endl << "=== Initial array (first 200 elems) ===\n";
+    print_vector(arr, 200); // prints first up to 200 elems; adjust as needed
+}
 
     // Run sort and measure time
     Timer t;
@@ -26,10 +40,17 @@ int run_sort(const std::string& algorithm_name, const std::string& mode, SortFun
     t.stop();
     double time_ms = t.ms();
 
+    // After sort and verification, before output -> add:
+    if (print_array) {
+        std::cout << std::endl << "=== Array after sort (first 200 elems) ===\n";
+        print_vector(arr, 200);
+    }
+
+
     // ✅ Verify that the array is sorted
     bool sorted = std::is_sorted(arr.begin(), arr.end());
     if (!sorted) {
-        std::cerr << "❌ Error: Array is NOT sorted after running " << algorithm_name << " (" << mode << ")\n";
+        std::cerr << "Error: Array is NOT sorted after running " << algorithm_name << " (" << mode << ")\n";
         // Optionally: write to a log file for debugging
         std::ofstream log("../data/errors.log", std::ios::app);
         if (log.is_open()) {
@@ -45,7 +66,7 @@ int run_sort(const std::string& algorithm_name, const std::string& mode, SortFun
     std::cout << "Array size: " << n << "\n";
     std::cout << "Array type: " << type << "\n";
     std::cout << "Execution time (ms): " << time_ms << "\n";
-    std::cout << "✅ Verification: sorted = " << (sorted ? "true" : "false") << "\n";
+    std::cout << "Verification: sorted = " << (sorted ? "true" : "false") << "\n";
 
     // Append results to CSV
     std::ofstream ofs("../data/benchmark.csv", std::ios::app);

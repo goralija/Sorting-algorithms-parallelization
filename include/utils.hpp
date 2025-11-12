@@ -4,13 +4,19 @@
 #include <random>
 #include <iostream>
 
+// === Global deterministic RNG ===
+inline std::mt19937& global_rng(unsigned int seed = 12345) {
+    static std::mt19937 rng(seed);
+    return rng;
+}
+
 // === Array Generators ===
 
 // Fully random array
-inline std::vector<int> generate_random_array(size_t n, int min_val = 0, int max_val = 1'000'000) {
-    std::vector<int> arr(n);
-    std::mt19937 rng(std::random_device{}());
+inline std::vector<int> generate_random_array(size_t n, int min_val = 0, int max_val = 1'000'000, unsigned int seed = 12345) {
+    std::mt19937 rng(seed);
     std::uniform_int_distribution<int> dist(min_val, max_val);
+    std::vector<int> arr(n);
     for (int &x : arr) x = dist(rng);
     return arr;
 }
@@ -30,9 +36,9 @@ inline std::vector<int> generate_reversed_array(size_t n) {
 }
 
 // Nearly sorted (mostly sorted with a few random swaps)
-inline std::vector<int> generate_nearly_sorted_array(size_t n, double swap_fraction = 0.01) {
+inline std::vector<int> generate_nearly_sorted_array(size_t n, double swap_fraction = 0.01, unsigned int seed = 12345) {
     auto arr = generate_sorted_array(n);
-    std::mt19937 rng(std::random_device{}());
+    std::mt19937 rng(seed);
     std::uniform_int_distribution<size_t> dist(0, n - 1);
     size_t num_swaps = static_cast<size_t>(n * swap_fraction);
     for (size_t i = 0; i < num_swaps; ++i) {
@@ -43,28 +49,28 @@ inline std::vector<int> generate_nearly_sorted_array(size_t n, double swap_fract
 }
 
 // Few unique values
-inline std::vector<int> generate_few_unique_array(size_t n, int unique_values = 10) {
-    std::vector<int> arr(n);
-    std::mt19937 rng(std::random_device{}());
+inline std::vector<int> generate_few_unique_array(size_t n, int unique_values = 10, unsigned int seed = 12345) {
+    std::mt19937 rng(seed);
     std::uniform_int_distribution<int> dist(0, unique_values - 1);
+    std::vector<int> arr(n);
     for (int &x : arr) x = dist(rng);
     return arr;
 }
 
 // === Unified Array Generator Selector ===
-inline std::vector<int> generate_array(size_t n, const std::string& type) {
+inline std::vector<int> generate_array(size_t n, const std::string& type, unsigned int seed = 12345) {
     if (type == "sorted") return generate_sorted_array(n);
     if (type == "reversed") return generate_reversed_array(n);
-    if (type == "nearly_sorted") return generate_nearly_sorted_array(n);
-    if (type == "few_unique") return generate_few_unique_array(n);
-    return generate_random_array(n); // default
+    if (type == "nearly_sorted") return generate_nearly_sorted_array(n, 0.01, seed);
+    if (type == "few_unique") return generate_few_unique_array(n, 10, seed);
+    return generate_random_array(n, 0, 1'000'000, seed); // default
 }
 
 // Generate a random vector of integers
-inline std::vector<int> generate_random_vector(int n, int min_val = 0, int max_val = 1'000'000) {
-    std::vector<int> v(n);
-    std::mt19937 rng(std::random_device{}());
+inline std::vector<int> generate_random_vector(int n, int min_val = 0, int max_val = 1'000'000, unsigned int seed = 12345) {
+    std::mt19937 rng(seed);
     std::uniform_int_distribution<int> dist(min_val, max_val);
+    std::vector<int> v(n);
     for (auto &x : v) x = dist(rng);
     return v;
 }
