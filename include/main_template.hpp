@@ -9,15 +9,21 @@
 #include "utils.hpp"
 
 template <typename SortFunc>
-int run_sort(const std::string& algorithm_name, const std::string& mode, SortFunc sort_function, int argc, char* argv[]) {
+int run_sort(const std::string &algorithm_name, const std::string &mode, SortFunc sort_function, int argc, char *argv[])
+{
     // Parse CLI args
     size_t n = 100000; // default
     std::string type = "random";
-    if (argc > 1) n = std::stoul(argv[1]);
-    if (argc > 2) type = argv[2];
+    if (argc > 1)
+        n = std::stoul(argv[1]);
+    if (argc > 2)
+        type = argv[2];
 
-    // Generate array based on type
-    auto arr = generate_array(n, type);
+    // --- Fiksni seed za reproducibilnost ---
+    unsigned int seed = 12345;
+
+    // Generate array based on type and seed
+    auto arr = generate_array(n, type, seed);
 
     // Run sort and measure time
     Timer t;
@@ -28,11 +34,12 @@ int run_sort(const std::string& algorithm_name, const std::string& mode, SortFun
 
     // ✅ Verify that the array is sorted
     bool sorted = std::is_sorted(arr.begin(), arr.end());
-    if (!sorted) {
+    if (!sorted)
+    {
         std::cerr << "❌ Error: Array is NOT sorted after running " << algorithm_name << " (" << mode << ")\n";
-        // Optionally: write to a log file for debugging
         std::ofstream log("../data/errors.log", std::ios::app);
-        if (log.is_open()) {
+        if (log.is_open())
+        {
             log << "Algorithm: " << algorithm_name << ", Mode: " << mode
                 << ", Size: " << n << ", Type: " << type << " → FAILED (unsorted)\n";
         }
@@ -49,7 +56,8 @@ int run_sort(const std::string& algorithm_name, const std::string& mode, SortFun
 
     // Append results to CSV
     std::ofstream ofs("../data/benchmark.csv", std::ios::app);
-    if (ofs.is_open()) {
+    if (ofs.is_open())
+    {
         ofs << algorithm_name << "," << mode << "," << n << "," << type << "," << time_ms << "\n";
         ofs.close();
     }
