@@ -22,6 +22,8 @@ Thumbs.db
 
 # Build folder
 /build/
+/build1/
+/build_gcc/
 /CMakeFiles/
 /CMakeCache.txt
 /*.cmake
