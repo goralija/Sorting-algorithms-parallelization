@@ -91,43 +91,37 @@ for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
         fi
 
         echo "🚀 Running updated executable: $exe_name"
-        for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
-            if [[ -x "$exe" ]]; then
-                exe_name=$(basename "$exe")
-                echo "🚀 Running updated executable: $exe_name"
-                for type in "${TYPES[@]}"; do
-                    for size in "${SIZES[@]}"; do
-                        echo "  -> Type: $type | Size: $size"
-                        # build args (size, type, seed, optional print flag)
-                        if [[ "${PRINT_ARRAY}" == "true" ]]; then
-                            output=$("$exe" "$size" "$type" "$SEED" --print-array 2>&1)
-                        else
-                            output=$("$exe" "$size" "$type" "$SEED" 2>&1)
-                        fi
+        for type in "${TYPES[@]}"; do
+            for size in "${SIZES[@]}"; do
+                echo "  -> Type: $type | Size: $size"
+                # build args (size, type, seed, optional print flag)
+                if [[ "${PRINT_ARRAY}" == "true" ]]; then
+                    output=$("$exe" "$size" "$type" "$SEED" --print-array 2>&1)
+                else
+                    output=$("$exe" "$size" "$type" "$SEED" 2>&1)
+                fi
 
-                        # Print full output to terminal for debugging
-                        echo "----- ${exe_name} output start -----"
-                        echo "$output"
-                        echo "----- ${exe_name} output end -----"
+                # Print full output to terminal for debugging
+                echo "----- ${exe_name} output start -----"
+                echo "$output"
+                echo "----- ${exe_name} output end -----"
 
-                        # Check if output contains sorting error
-                        if echo "$output" | grep -q "Error: Array is NOT sorted"; then
-                            echo "❗ Skipping invalid result for $exe_name (unsorted output)"
-                            continue
-                        fi
-                        
-                        time_ms=$(echo "$output" | grep "Execution time" | awk '{print $4}')
-                        
-                        # Verify we got a valid time measurement
-                        if [[ -z "$time_ms" ]]; then
-                            echo "❗ No valid execution time found for $exe_name"
-                            continue
-                        fi
+                # Check if output contains sorting error
+                if echo "$output" | grep -q "Error: Array is NOT sorted"; then
+                    echo "❗ Skipping invalid result for $exe_name (unsorted output)"
+                    continue
+                fi
+                
+                time_ms=$(echo "$output" | grep "Execution time" | awk '{print $4}')
+                
+                # Verify we got a valid time measurement
+                if [[ -z "$time_ms" ]]; then
+                    echo "❗ No valid execution time found for $exe_name"
+                    continue
+                fi
 
-                        echo "${exe_name},${size},${type},${time_ms}" >> "${OUTFILE}"
-                    done
-                done
-            fi
+                echo "${exe_name},${size},${type},${time_ms}" >> "${OUTFILE}"
+            done
         done
     fi
 done
