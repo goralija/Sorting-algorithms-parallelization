@@ -15,7 +15,14 @@ int run_sort(const std::string& algorithm_name, const std::string& mode, SortFun
     std::string type = "random";    // default
     unsigned int seed = 12345u;     // default deterministic seed
     bool print_array = false;       // default: don't print
-    bool benchmark_mode = false;    // default: full mode with verification and I/O
+
+#ifdef BENCHMARK_MODE
+    // Compile-time benchmark mode: always minimal overhead
+    constexpr bool benchmark_mode = true;
+#else
+    // Normal mode: full verification and I/O
+    constexpr bool benchmark_mode = false;
+#endif
 
     if (argc > 1) n = std::stoul(argv[1]);
     if (argc > 2) type = argv[2];
@@ -23,11 +30,6 @@ int run_sort(const std::string& algorithm_name, const std::string& mode, SortFun
     if (argc > 4) {
         std::string flag = argv[4];
         if (flag == "--print-array" || flag == "print" || flag == "-p") print_array = true;
-        else if (flag == "--benchmark" || flag == "-b") benchmark_mode = true;
-    }
-    if (argc > 5) {
-        std::string flag = argv[5];
-        if (flag == "--benchmark" || flag == "-b") benchmark_mode = true;
     }
 
     // Generate array based on type and seed

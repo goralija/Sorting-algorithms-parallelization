@@ -33,10 +33,13 @@ Write-Host "  Seed: $Seed"
 Write-Host "  Print array: $PrintArray"
 Write-Host "  Benchmark mode: $BenchmarkMode"
 
-$BuildDir = "build"
+# Use separate build directories for normal vs benchmark builds
+$BuildDir = if ($BenchmarkMode) { "build_vtune_benchmarking" } else { "build" }
 $DataDir = "data"
 $HashFile = "$DataDir\last_run_hashes.txt"
 $OutFile = "$DataDir\benchmark.csv"
+
+Write-Host "📁 Build directory: $BuildDir"
 
 # Detect number of CPU cores
 $Cores = [Environment]::ProcessorCount
@@ -60,9 +63,12 @@ Push-Location $BuildDir
 
 Write-Host "🧱 Configuring CMake build..."
 
+# Build CMake benchmark flag based on config
+$BenchmarkFlag = if ($BenchmarkMode) { "-DBENCHMARK_MODE=ON" } else { "-DBENCHMARK_MODE=OFF" }
+
 # 1️⃣ Preferred configuration (GCC + Ninja)
 Write-Host "🔧 Trying preferred configuration (Ninja + GCC)..."
-$preferredCommand = 'cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=C:/msys64/mingw64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/mingw64/bin/g++.exe -DUSE_OPENMP=ON -DCMAKE_CXX_FLAGS="-O3 -march=native -mavx2 -mavx512f -fopenmp" ..'
+$preferredCommand = "cmake -G `"Ninja`" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=C:/msys64/mingw64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/mingw64/bin/g++.exe -DUSE_OPENMP=ON $BenchmarkFlag -DCMAKE_CXX_FLAGS=`"-O3 -march=native -mavx2 -mavx512f -fopenmp`" .."
 Invoke-Expression $preferredCommand
 
 if ($LASTEXITCODE -eq 0) {
@@ -73,10 +79,10 @@ if ($LASTEXITCODE -eq 0) {
 
     # 2️⃣ Fallback options in order of preference
     $generators = @(
-        @("MinGW Makefiles", 'cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release'),
-        @("Ninja with Clang", 'cmake .. -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release'),
-        @("Visual Studio Clang", 'cmake .. -G "Visual Studio 17 2022" -A x64 -T ClangCL'),
-        @("Default", 'cmake .. -DCMAKE_BUILD_TYPE=Release')
+        @("MinGW Makefiles", "cmake .. -G `"MinGW Makefiles`" -DCMAKE_BUILD_TYPE=Release $BenchmarkFlag"),
+        @("Ninja with Clang", "cmake .. -G `"Ninja`" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release $BenchmarkFlag"),
+        @("Visual Studio Clang", "cmake .. -G `"Visual Studio 17 2022`" -A x64 -T ClangCL $BenchmarkFlag"),
+        @("Default", "cmake .. -DCMAKE_BUILD_TYPE=Release $BenchmarkFlag")
     )
 
     $success = $false
@@ -113,8 +119,34 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+# 4️⃣ Copy required DLLs to build directory for VTune and standalone execution
+Write-Host "📦 Copying runtime DLLs to build directory..."
+$dllsToCopy = @(
+    "C:\msys64\mingw64\bin\libstdc++-6.dll",
+    "C:\msys64\mingw64\bin\libgcc_s_seh-1.dll",
+    "C:\msys64\mingw64\bin\libwinpthread-1.dll",
+    "C:\msys64\mingw64\bin\libgomp-1.dll"  # OpenMP runtime
+)
+foreach ($dll in $dllsToCopy) {
+    if (Test-Path $dll) {
+        Copy-Item $dll -Destination . -Force
+        Write-Host "  ✅ Copied $(Split-Path $dll -Leaf)"
+    }
+}
+
 Pop-Location
 Write-Host "✅ Build completed successfully!"
+
+# In benchmark mode, don't execute - VTune will run them
+if ($BenchmarkMode) {
+    Write-Host ""
+    Write-Host "═══════════════════════════════════════════════════════════"
+    Write-Host "🎯 Benchmark executables built in: $BuildDir"
+    Write-Host "📊 Ready for VTune profiling - executables NOT executed"
+    Write-Host "💡 Run them manually through VTune or directly for profiling"
+    Write-Host "═══════════════════════════════════════════════════════════"
+    exit 0
+}
 
 if (-Not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
 
@@ -172,7 +204,7 @@ Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|par
             # build arguments: size, type, seed, optional flags
             $args = @($size, $type, $Seed)
             if ($PrintArray) { $args += "--print-array" }
-            if ($BenchmarkMode) { $args += "--benchmark" }
+            # Note: benchmark mode is now compile-time, no runtime flag needed
 
             # Run executable and capture output
             $output = & $exePath @args 2>&1

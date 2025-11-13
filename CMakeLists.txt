@@ -4,6 +4,15 @@ project(SortingAlgorithmsParallelization LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# --- Benchmark mode option ---
+option(BENCHMARK_MODE "Enable benchmark mode (minimal overhead, no verification)" OFF)
+if(BENCHMARK_MODE)
+    add_compile_definitions(BENCHMARK_MODE=1)
+    message(STATUS "✅ BENCHMARK_MODE enabled (compile-time)")
+else()
+    message(STATUS "ℹ️ Normal mode (full verification and I/O)")
+endif()
+
 # --- Optimizacija ---
 # -O3 za agresivne optimizacije
 # -march=native uključi najjači SIMD za tvoj CPU (AVX2, AVX-512 ako postoji)

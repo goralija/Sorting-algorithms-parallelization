@@ -32,10 +32,17 @@ echo "  SEED: ${SEED}"
 echo "  PRINT_ARRAY: ${PRINT_ARRAY}"
 echo "  BENCHMARK_MODE: ${BENCHMARK_MODE}"
 
-BUILD_DIR="build"
+# Use separate build directories for normal vs benchmark builds
+if [[ "${BENCHMARK_MODE}" == "true" ]]; then
+    BUILD_DIR="build_vtune_benchmarking"
+else
+    BUILD_DIR="build"
+fi
 DATA_DIR="data"
 HASH_FILE="${DATA_DIR}/last_run_hashes.txt"
 OUTFILE="${DATA_DIR}/benchmark.csv"
+
+echo "📁 Build directory: ${BUILD_DIR}"
 
 CORES=$(sysctl -n hw.logicalcpu)
 
@@ -43,11 +50,31 @@ echo "🔧 Rebuilding executables..."
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}"
+
+# Build CMake benchmark flag based on config
+if [[ "${BENCHMARK_MODE}" == "true" ]]; then
+    BENCHMARK_FLAG="-DBENCHMARK_MODE=ON"
+else
+    BENCHMARK_FLAG="-DBENCHMARK_MODE=OFF"
+fi
+
 cmake -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
-      -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ ..
+      -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
+      ${BENCHMARK_FLAG} ..
 make -j${CORES}
 cd ..
+
+# In benchmark mode, don't execute - VTune will run them
+if [[ "${BENCHMARK_MODE}" == "true" ]]; then
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo "🎯 Benchmark executables built in: ${BUILD_DIR}"
+    echo "📊 Ready for VTune profiling - executables NOT executed"
+    echo "💡 Run them manually through VTune or directly for profiling"
+    echo "═══════════════════════════════════════════════════════════"
+    exit 0
+fi
 
 mkdir -p "${DATA_DIR}"
 
@@ -101,9 +128,7 @@ for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
                 if [[ "${PRINT_ARRAY}" == "true" ]]; then
                     args+=("--print-array")
                 fi
-                if [[ "${BENCHMARK_MODE}" == "true" ]]; then
-                    args+=("--benchmark")
-                fi
+                # Note: benchmark mode is now compile-time, no runtime flag needed
 
                 output=$("$exe" "${args[@]}" 2>&1)
 
