@@ -23,60 +23,93 @@ SIZES=($(yq -r '.sizes[]' "${CONFIG_FILE}"))
 TYPES=($(yq -r '.types[]' "${CONFIG_FILE}"))
 SEED=$(yq -r '.seed // 12345' "${CONFIG_FILE}")
 PRINT_ARRAY=$(yq -r '.print_array // false' "${CONFIG_FILE}")
-BENCHMARK_MODE=$(yq -r '.benchmark_measurement // false' "${CONFIG_FILE}")
 
 echo "📘 Loaded configuration:"
 echo "  SIZES: ${SIZES[@]}"
 echo "  TYPES: ${TYPES[@]}"
 echo "  SEED: ${SEED}"
 echo "  PRINT_ARRAY: ${PRINT_ARRAY}"
-echo "  BENCHMARK_MODE: ${BENCHMARK_MODE}"
 
-# Use separate build directories for normal vs benchmark builds
-if [[ "${BENCHMARK_MODE}" == "true" ]]; then
-    BUILD_DIR="build_vtune_benchmarking"
-else
-    BUILD_DIR="build"
-fi
 DATA_DIR="data"
 HASH_FILE="${DATA_DIR}/last_run_hashes.txt"
 OUTFILE="${DATA_DIR}/benchmark.csv"
 
-echo "📁 Build directory: ${BUILD_DIR}"
+# Always build both versions
+BUILD_DIR_NORMAL="build"
+BUILD_DIR_BENCHMARK="build_vtune_benchmarking"
+
+echo ""
+echo "📁 Building both versions:"
+echo "   • Normal (with verification): ${BUILD_DIR_NORMAL}"
+echo "   • Benchmark (VTune ready): ${BUILD_DIR_BENCHMARK}"
 
 CORES=$(sysctl -n hw.logicalcpu)
 
-echo "🔧 Rebuilding executables..."
-rm -rf "${BUILD_DIR}"
-mkdir -p "${BUILD_DIR}"
-cd "${BUILD_DIR}"
-
-# Build CMake benchmark flag based on config
-if [[ "${BENCHMARK_MODE}" == "true" ]]; then
-    BENCHMARK_FLAG="-DBENCHMARK_MODE=ON"
-else
-    BENCHMARK_FLAG="-DBENCHMARK_MODE=OFF"
-fi
-
-cmake -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
-      -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
-      ${BENCHMARK_FLAG} ..
-make -j${CORES}
-cd ..
-
-# In benchmark mode, don't execute - VTune will run them
-if [[ "${BENCHMARK_MODE}" == "true" ]]; then
+# Function to build executables
+build_executables() {
+    local build_dir=$1
+    local benchmark_flag=$2
+    local description=$3
+    
     echo ""
     echo "═══════════════════════════════════════════════════════════"
-    echo "🎯 Benchmark executables built in: ${BUILD_DIR}"
-    echo "📊 Ready for VTune profiling - executables NOT executed"
-    echo "💡 Run them manually through VTune or directly for profiling"
+    echo "🔧 Building ${description}"
     echo "═══════════════════════════════════════════════════════════"
-    exit 0
+    
+    rm -rf "${build_dir}"
+    mkdir -p "${build_dir}"
+    cd "${build_dir}"
+    
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
+          -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
+          ${benchmark_flag} ..
+    
+    if [[ $? -ne 0 ]]; then
+        echo "❌ CMake configuration failed for ${description}"
+        cd ..
+        return 1
+    fi
+    
+    make -j${CORES}
+    
+    if [[ $? -ne 0 ]]; then
+        echo "❌ Build failed for ${description}"
+        cd ..
+        return 1
+    fi
+    
+    cd ..
+    echo "✅ Build completed successfully!"
+    return 0
+}
+
+# Build both versions
+build_executables "${BUILD_DIR_NORMAL}" "-DBENCHMARK_MODE=OFF" "NORMAL executables (with verification)"
+NORMAL_SUCCESS=$?
+
+build_executables "${BUILD_DIR_BENCHMARK}" "-DBENCHMARK_MODE=ON" "BENCHMARK executables (VTune ready)"
+BENCHMARK_SUCCESS=$?
+
+if [[ ${NORMAL_SUCCESS} -ne 0 ]] || [[ ${BENCHMARK_SUCCESS} -ne 0 ]]; then
+    echo ""
+    echo "❌ One or more builds failed."
+    exit 1
 fi
 
+echo ""
+echo "═══════════════════════════════════════════════════════════"
+echo "✅ Both versions built successfully!"
+echo "   📂 Normal: ${BUILD_DIR_NORMAL} (will be executed)"
+echo "   📂 Benchmark: ${BUILD_DIR_BENCHMARK} (ready for VTune)"
+echo "═══════════════════════════════════════════════════════════"
+
 mkdir -p "${DATA_DIR}"
+
+echo ""
+echo "═══════════════════════════════════════════════════════════"
+echo "🚀 Running normal executables from: ${BUILD_DIR_NORMAL}"
+echo "═══════════════════════════════════════════════════════════"
 
 # Backup current benchmark if it exists
 if [[ -f "${OUTFILE}" ]]; then
@@ -99,8 +132,8 @@ get_old_hash() {
     grep "^$1 " "${HASH_FILE}" | awk '{print $2}'
 }
 
-# Compute new hashes and decide which executables changed
-for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
+# Compute new hashes and decide which executables changed (only from normal build)
+for exe in ${BUILD_DIR_NORMAL}/sequential_* ${BUILD_DIR_NORMAL}/parallel_cpu_*; do
     if [[ -x "$exe" ]]; then
         exe_name=$(basename "$exe")
         hash=$(md5 -q "$exe" 2>/dev/null || md5sum "$exe" | awk '{print $1}')
@@ -132,13 +165,7 @@ for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
 
                 output=$("$exe" "${args[@]}" 2>&1)
 
-                # In benchmark mode, skip detailed output parsing (minimal overhead)
-                if [[ "${BENCHMARK_MODE}" == "true" ]]; then
-                    echo "  ✅ Benchmark mode run completed (no output verification)"
-                    continue
-                fi
-
-                # Normal mode: print full output and parse results
+                # Print full output and parse results
                 # Print full output to terminal for debugging
                 echo "----- ${exe_name} output start -----"
                 echo "$output"
