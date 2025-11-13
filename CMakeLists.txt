@@ -32,6 +32,8 @@ file(GLOB SEQ_NAIVE_SRC "sequential_naive/*.cpp")
 foreach(src_file ${SEQ_NAIVE_SRC})
     get_filename_component(exec_name ${src_file} NAME_WE)
     add_executable(sequential_naive_${exec_name} ${src_file})
+    # Explicitly disable OpenMP for sequential builds to prevent any parallel optimization
+    target_compile_options(sequential_naive_${exec_name} PRIVATE -fno-openmp)
 endforeach()
 
 # --- Sequential optimized executables ---
@@ -39,6 +41,8 @@ file(GLOB SEQ_OPT_SRC "sequential_optimized/*.cpp")
 foreach(src_file ${SEQ_OPT_SRC})
     get_filename_component(exec_name ${src_file} NAME_WE)
     add_executable(sequential_optimized_${exec_name} ${src_file})
+    # Explicitly disable OpenMP for sequential builds to prevent any parallel optimization
+    target_compile_options(sequential_optimized_${exec_name} PRIVATE -fno-openmp)
 endforeach()
 
 # --- Parallel CPU executables (OpenMP + SIMD) ---

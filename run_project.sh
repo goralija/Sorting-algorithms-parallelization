@@ -18,17 +18,19 @@ if ! command -v yq &> /dev/null; then
     exit 1
 fi
 
-# Read sizes, types, seed, print flag from YAML
+# Read sizes, types, seed, print flag, benchmark mode from YAML
 SIZES=($(yq -r '.sizes[]' "${CONFIG_FILE}"))
 TYPES=($(yq -r '.types[]' "${CONFIG_FILE}"))
 SEED=$(yq -r '.seed // 12345' "${CONFIG_FILE}")
 PRINT_ARRAY=$(yq -r '.print_array // false' "${CONFIG_FILE}")
+BENCHMARK_MODE=$(yq -r '.benchmark_measurement // false' "${CONFIG_FILE}")
 
 echo "📘 Loaded configuration:"
 echo "  SIZES: ${SIZES[@]}"
 echo "  TYPES: ${TYPES[@]}"
 echo "  SEED: ${SEED}"
 echo "  PRINT_ARRAY: ${PRINT_ARRAY}"
+echo "  BENCHMARK_MODE: ${BENCHMARK_MODE}"
 
 BUILD_DIR="build"
 DATA_DIR="data"
@@ -94,13 +96,24 @@ for exe in ${BUILD_DIR}/sequential_* ${BUILD_DIR}/parallel_cpu_*; do
         for type in "${TYPES[@]}"; do
             for size in "${SIZES[@]}"; do
                 echo "  -> Type: $type | Size: $size"
-                # build args (size, type, seed, optional print flag)
+                # build args (size, type, seed, optional flags)
+                args=("$size" "$type" "$SEED")
                 if [[ "${PRINT_ARRAY}" == "true" ]]; then
-                    output=$("$exe" "$size" "$type" "$SEED" --print-array 2>&1)
-                else
-                    output=$("$exe" "$size" "$type" "$SEED" 2>&1)
+                    args+=("--print-array")
+                fi
+                if [[ "${BENCHMARK_MODE}" == "true" ]]; then
+                    args+=("--benchmark")
                 fi
 
+                output=$("$exe" "${args[@]}" 2>&1)
+
+                # In benchmark mode, skip detailed output parsing (minimal overhead)
+                if [[ "${BENCHMARK_MODE}" == "true" ]]; then
+                    echo "  ✅ Benchmark mode run completed (no output verification)"
+                    continue
+                fi
+
+                # Normal mode: print full output and parse results
                 # Print full output to terminal for debugging
                 echo "----- ${exe_name} output start -----"
                 echo "$output"

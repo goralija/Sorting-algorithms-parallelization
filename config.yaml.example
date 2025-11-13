@@ -3,3 +3,5 @@ types: [random, sorted, reversed, nearly_sorted, few_unique]
 seed: 42
 print_array: false   # true or false, potrebno drzati na false
 # radi izbjegavanja pristupanja nizu prije sortiranja, I/O overheada... osim u iznimnim debugging slucajevima
+benchmark_measurement: false   # true = minimal overhead for VTune profiling (no verification, timing, I/O)
+                               # false = full mode with verification, timing, and CSV output

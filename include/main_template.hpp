@@ -15,6 +15,7 @@ int run_sort(const std::string& algorithm_name, const std::string& mode, SortFun
     std::string type = "random";    // default
     unsigned int seed = 12345u;     // default deterministic seed
     bool print_array = false;       // default: don't print
+    bool benchmark_mode = false;    // default: full mode with verification and I/O
 
     if (argc > 1) n = std::stoul(argv[1]);
     if (argc > 2) type = argv[2];
@@ -22,16 +23,37 @@ int run_sort(const std::string& algorithm_name, const std::string& mode, SortFun
     if (argc > 4) {
         std::string flag = argv[4];
         if (flag == "--print-array" || flag == "print" || flag == "-p") print_array = true;
+        else if (flag == "--benchmark" || flag == "-b") benchmark_mode = true;
+    }
+    if (argc > 5) {
+        std::string flag = argv[5];
+        if (flag == "--benchmark" || flag == "-b") benchmark_mode = true;
     }
 
     // Generate array based on type and seed
     auto arr = generate_array(n, type, seed);
 
-// Optionally print the initial array (full print for debugging; you can limit by max elements in print_vector)
-if (print_array) {
-    std::cout << std::endl << "=== Initial array (first 200 elems) ===\n";
-    print_vector(arr, 200); // prints first up to 200 elems; adjust as needed
-}
+    // In benchmark mode, minimize I/O and extra operations for VTune profiling
+    if (benchmark_mode) {
+        // Pure benchmark mode: only sorting, minimal overhead
+        sort_function(arr);
+        
+        // Use the result to prevent dead code elimination (compiler optimizing away the sort)
+        // Compute a simple checksum that forces the compiler to keep the sorted array
+        volatile long long checksum = 0;
+        for (size_t i = 0; i < std::min(n, size_t(100)); ++i) {
+            checksum += arr[i];
+        }
+        
+        return 0;
+    }
+
+    // Normal mode: full verification and I/O
+    // Optionally print the initial array (full print for debugging; you can limit by max elements in print_vector)
+    if (print_array) {
+        std::cout << std::endl << "=== Initial array (first 200 elems) ===\n";
+        print_vector(arr, 200); // prints first up to 200 elems; adjust as needed
+    }
 
     // Run sort and measure time
     Timer t;

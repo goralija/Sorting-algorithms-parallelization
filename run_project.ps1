@@ -24,12 +24,14 @@ $Sizes = $config.sizes
 $Types = $config.types
 $Seed = if ($null -ne $config.seed) { [int]$config.seed } else { 12345 }
 $PrintArray = if ($null -ne $config.print_array) { [bool]$config.print_array } else { $false }
+$BenchmarkMode = if ($null -ne $config.benchmark_measurement) { [bool]$config.benchmark_measurement } else { $false }
 
 Write-Host "📘 Loaded configuration:"
 Write-Host "  Sizes: $($Sizes -join ', ')"
 Write-Host "  Types: $($Types -join ', ')"
 Write-Host "  Seed: $Seed"
 Write-Host "  Print array: $PrintArray"
+Write-Host "  Benchmark mode: $BenchmarkMode"
 
 $BuildDir = "build"
 $DataDir = "data"
@@ -167,13 +169,21 @@ Get-ChildItem $BuildDir -File | Where-Object { $_.Name -match '^(sequential_|par
     foreach ($type in $Types) {
         foreach ($size in $Sizes) {
             Write-Host "  -> Type: $type | Size: $size"
-            # build arguments: size, type, seed, optional print flag
+            # build arguments: size, type, seed, optional flags
             $args = @($size, $type, $Seed)
             if ($PrintArray) { $args += "--print-array" }
+            if ($BenchmarkMode) { $args += "--benchmark" }
 
             # Run executable and capture output
             $output = & $exePath @args 2>&1
 
+            # In benchmark mode, skip detailed output parsing (minimal overhead)
+            if ($BenchmarkMode) {
+                Write-Host "  ✅ Benchmark mode run completed (no output verification)"
+                continue
+            }
+
+            # Normal mode: print full output and parse results
             # Print full output to console so array is visible for debugging
             Write-Host "----- $exeName output start -----"
             Write-Host $output
