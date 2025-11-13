@@ -21,6 +21,7 @@ plots/*.png
 Thumbs.db
 
 # Build folder
+/vtune_results/
 /build/
 /build1/
 /build_gcc/
