@@ -2,6 +2,10 @@
 # Rebuilds all executables, runs only changed ones, and logs results
 # Copies results of unchanged executables from previous benchmark
 
+param(
+    [string[]]$Algorithms = @()  # Algorithm filters: --quick, --merge, --bitonic, --std, --seq-naive, --seq-optimized, --cpu-parallel
+)
+
 $ConfigFile = "config.yaml"
 $ExampleFile = "config.yaml.example"
 
@@ -30,6 +34,41 @@ Write-Host "  Sizes: $($Sizes -join ', ')"
 Write-Host "  Types: $($Types -join ', ')"
 Write-Host "  Seed: $Seed"
 Write-Host "  Print array: $PrintArray"
+
+if ($Algorithms.Count -gt 0) {
+    Write-Host "  Algorithm filters: $($Algorithms -join ', ')"
+}
+
+# Function to check if an executable matches the algorithm filters
+function Test-AlgorithmFilter {
+    param([string]$ExeName)
+    
+    # If no filters specified, run all
+    if ($Algorithms.Count -eq 0) {
+        return $true
+    }
+    
+    foreach ($filter in $Algorithms) {
+        $filterLower = $filter.ToLower().TrimStart('-')
+        $exeLower = $ExeName.ToLower()
+        
+        # Check algorithm type filters
+        if ($filterLower -eq "quick" -and $exeLower -like "*quick*") { return $true }
+        if ($filterLower -eq "merge" -and $exeLower -like "*merge*") { return $true }
+        if ($filterLower -eq "bitonic" -and $exeLower -like "*bitonic*") { return $true }
+        if ($filterLower -eq "std" -and $exeLower -like "*std*") { return $true }
+        
+        # Check implementation category filters
+        if ($filterLower -eq "seq-naive" -and $exeLower -like "sequential_naive*") { return $true }
+        if ($filterLower -eq "seq-optimized" -and $exeLower -like "sequential_optimized*") { return $true }
+        if ($filterLower -eq "cpu-parallel" -and $exeLower -like "parallel_cpu*") { return $true }
+        
+        # Check exact name match
+        if ($exeLower -like "*$filterLower*") { return $true }
+    }
+    
+    return $false
+}
 
 $DataDir = "data"
 $HashFile = "$DataDir\last_run_hashes.txt"
@@ -209,9 +248,28 @@ Get-ChildItem $BuildDirNormal -File | Where-Object { $_.Name -match '^(sequentia
     $newHashes[$exePath] = $hash
 
     $oldHash = if ($oldHashes.ContainsKey($exePath)) { $oldHashes[$exePath] } else { "" }
-
+    
+    # Check if this executable matches the algorithm filters
+    $matchesFilter = Test-AlgorithmFilter -ExeName $exeName
+    
     if ($oldHash -eq $hash) {
-        Write-Host "⏭️  Skipping unchanged: $exeName"
+        if ($matchesFilter) {
+            Write-Host "⏭️  Skipping unchanged (matches filter): $exeName"
+        } else {
+            Write-Host "⏭️  Skipping (no filter match): $exeName"
+        }
+        if ($LatestBackup) {
+            $lines = Get-Content $LatestBackup.FullName | Where-Object { $_ -match "^$exeName," }
+            if ($lines) {
+                $lines | Out-File $OutFile -Append
+            }
+        }
+        return
+    }
+    
+    if (-not $matchesFilter) {
+        Write-Host "⏭️  Skipping (no filter match): $exeName"
+        # Copy previous results even if executable changed but doesn't match filter
         if ($LatestBackup) {
             $lines = Get-Content $LatestBackup.FullName | Where-Object { $_ -match "^$exeName," }
             if ($lines) {
