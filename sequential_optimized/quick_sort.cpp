@@ -51,9 +51,6 @@ int partition(int arr[], int low, int high) {
 void quick_sort(int arr[], int low, int high) {
     while (low < high) {
 
-        // Early exit if already sorted
-        if (arr[low] <= arr[high]) break;
-
         // Use insertion sort for small partitions
         if (high - low < INSERTION_SORT_THRESHOLD) {
             insertion_sort(arr, low, high);

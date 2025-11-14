@@ -1,2 +1,8 @@
 sizes: [16384, 8388608, 67108864]
 types: [random, sorted, reversed, nearly_sorted, few_unique]
+seed: 42
+print_array: false   # true or false, potrebno drzati na false
+# radi izbjegavanja pristupanja nizu prije sortiranja, I/O overheada... osim u iznimnim debugging slucajevima
+# Note: Both normal (verified) and benchmark (VTune-ready) executables are always built
+#       - Normal executables:    /build (executed automatically)
+#       - Benchmark executables: /build_vtune_benchmarking (for manual VTune profiling)

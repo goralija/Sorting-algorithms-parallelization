@@ -67,6 +67,7 @@ void merge_sort(int arr[], int l, int r) {
 }
 
 void merge_sort_wrapper(std::vector<int>& vec) {
+  if (!vec.empty())
     merge_sort(vec.data(), 0, vec.size() - 1);
 }
 

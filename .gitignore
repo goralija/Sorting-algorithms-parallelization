@@ -61,3 +61,5 @@ plots/**/*.pdf
 
 # Configuration files
 config.yaml
+
+*vtune*
