@@ -6,9 +6,9 @@
 
 using namespace std;
 
-const int INSERTION_SORT_THRESHOLD = 32;
+const int INSERTION_SORT_THRESHOLD = 16; // Keep small for best performance
 
-// Insertion sort for small subarrays
+// Simple, fast insertion sort
 inline void insertion_sort(int arr[], int low, int high) {
     for (int i = low + 1; i <= high; i++) {
         int key = arr[i];
@@ -21,51 +21,58 @@ inline void insertion_sort(int arr[], int low, int high) {
     }
 }
 
-// Median-of-three pivot selection
+// Simple median-of-three pivot selection
 inline int median_of_three(int arr[], int low, int high) {
-    int mid = low + (high - low) / 2;
+    int mid = low + ((high - low) >> 1);
+    
     if (arr[mid] < arr[low])
         swap(arr[mid], arr[low]);
     if (arr[high] < arr[low])
         swap(arr[high], arr[low]);
-    if (arr[mid] < arr[high])
-        swap(arr[mid], arr[high]);
-    return arr[high]; // pivot chosen as median
+    if (arr[high] < arr[mid])
+        swap(arr[high], arr[mid]);
+    
+    return mid;
 }
 
-// Partition using Lomuto scheme (with median-of-three pivot)
-int partition(int arr[], int low, int high) {
-    int pivot = median_of_three(arr, low, high);
+// Fast Hoare partition scheme
+inline int partition(int arr[], int low, int high) {
+    int pivot_idx = median_of_three(arr, low, high);
+    int pivot = arr[pivot_idx];
+    
     int i = low - 1;
-    for (int j = low; j < high; j++) {
-        if (arr[j] <= pivot) {
-            i++;
-            swap(arr[i], arr[j]);
-        }
+    int j = high + 1;
+    
+    while (true) {
+        do { i++; } while (arr[i] < pivot);
+        do { j--; } while (arr[j] > pivot);
+        
+        if (i >= j)
+            return j;
+        
+        swap(arr[i], arr[j]);
     }
-    swap(arr[i + 1], arr[high]);
-    return i + 1;
 }
 
 // Optimized quicksort with tail recursion elimination
 void quick_sort(int arr[], int low, int high) {
     while (low < high) {
-
         // Use insertion sort for small partitions
         if (high - low < INSERTION_SORT_THRESHOLD) {
             insertion_sort(arr, low, high);
-            break;
+            return;
         }
-
+        
         int pi = partition(arr, low, high);
-
-        // Tail recursion optimization
+        
+        // Recursively sort the smaller partition first (limits stack depth)
+        // Then use tail recursion for the larger one
         if (pi - low < high - pi) {
-            quick_sort(arr, low, pi - 1);
+            quick_sort(arr, low, pi);
             low = pi + 1;
         } else {
             quick_sort(arr, pi + 1, high);
-            high = pi - 1;
+            high = pi;
         }
     }
 }
