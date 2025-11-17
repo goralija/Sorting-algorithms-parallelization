@@ -78,5 +78,5 @@ void bitonic_sort_wrapper(std::vector<int>& vec) {
 
 // main – kao i kod merge sorta
 int main(int argc, char* argv[]) {
-    return run_sort("bitonic_sort_optimized", "sequential", bitonic_sort_wrapper, argc, argv);
+    //return run_sort("bitonic_sort_optimized", "sequential", bitonic_sort_wrapper, argc, argv);
 }
