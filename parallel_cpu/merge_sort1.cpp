@@ -19,10 +19,10 @@
 #endif
 
 // ---------------------- Tunable parameters ----------------------
-const int INSERTION_SORT_THRESHOLD = 128;   // for small runs
-const int TASK_THRESHOLD = 1 << 20;         // spawn OpenMP tasks for ranges >= 65536
-const int MERGE_PATH_MIN_CHUNK = 16384 * 4; // min total size to use merge-path splitting
-const int SIMD_BYTES = 32;                  // AVX2 = 256 bits = 32 bytes
+const int INSERTION_SORT_THRESHOLD = 128; // for small runs
+const int TASK_THRESHOLD = 1 << 18;       // spawn OpenMP tasks for ranges >= 65536
+const int MERGE_PATH_MIN_CHUNK = 16384;   // min total size to use merge-path splitting
+const int SIMD_BYTES = 32;                // AVX2 = 256 bits = 32 bytes
 const size_t ALIGN_BYTES = 64;
 
 // ---------------------- Cross-platform aligned allocation helpers ----------------------
@@ -299,7 +299,7 @@ void merge_sort_opt_parallel(int arr[], int n)
     // Top-level parallel region + single task to start recursion.
 #pragma omp parallel
     {
-#pragma omp single nowait
+#pragma omp single
         merge_sort_rec_parallel(arr, 0, n - 1, temp);
     }
 
