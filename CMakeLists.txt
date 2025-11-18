@@ -55,12 +55,18 @@ foreach(src_file ${SEQ_OPT_SRC})
 endforeach()
 
 # --- Parallel CPU executables (OpenMP + SIMD) ---
+# --- Parallel CPU executables (OpenMP + SIMD) ---
 file(GLOB CPU_SRC "parallel_cpu/*.cpp")
 foreach(src_file ${CPU_SRC})
     get_filename_component(exec_name ${src_file} NAME_WE)
     add_executable(parallel_cpu_${exec_name} ${src_file})
 
     if (OpenMP_FOUND)
+        target_compile_options(parallel_cpu_${exec_name} PRIVATE ${OpenMP_CXX_FLAGS})
         target_link_libraries(parallel_cpu_${exec_name} OpenMP::OpenMP_CXX)
     endif()
+
+    # eksplicitno SIMD
+    target_compile_options(parallel_cpu_${exec_name} PRIVATE -mavx2)
 endforeach()
+
