@@ -2,7 +2,9 @@
 #include <algorithm>
 #include <cstring> // for memcpy
 #include <main_template.hpp>
+
 const int INSERTION_SORT_THRESHOLD = 16; // empirijski odabir
+
 void insertion_sort(int arr[], int l, int r)
 {
     for (int i = l + 1; i <= r; i++)
@@ -14,6 +16,7 @@ void insertion_sort(int arr[], int l, int r)
             arr[j + 1] = arr[j];
             j--;
         }
+
         arr[j + 1] = key;
     }
 }
@@ -79,8 +82,10 @@ void merge_sort_opt(int arr[], int n)
     {
         memcpy(arr, src, n * sizeof(int));
     }
+
     delete[] temp;
 }
+
 // Wrapper za std::vector
 void merge_sort_wrapper(std::vector<int> &vec)
 {
