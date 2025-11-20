@@ -48,5 +48,5 @@ void bitonic_sort_wrapper(std::vector<int>& vec) {
 
 // Main – identična struktura kao kod merge sorta
 int main(int argc, char* argv[]) {
-    return run_sort("bitonic_sort", "sequential", bitonic_sort_wrapper, argc, argv);
+    //return run_sort("bitonic_sort", "sequential", bitonic_sort_wrapper, argc, argv);
 }

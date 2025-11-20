@@ -5,35 +5,35 @@
 
 using namespace std;
 
-// Swap two elements
-inline void swap_elements(int& a, int& b) {
-    int t = a;
-    a = b;
-    b = t;
-}
-
-// Partition function
+// Partition function (always uses last element as pivot - worst case on sorted data)
 int partition(int arr[], int low, int high) {
-    int pivot = arr[high];   // pivot element
-    int i = low - 1;         // index of smaller element
+    int pivot = arr[high];   // Always pick last element (no median-of-three)
+    int i = low - 1;
 
     for (int j = low; j < high; j++) {
         if (arr[j] <= pivot) {
             i++;
-            swap_elements(arr[i], arr[j]);
+            // Inline swap (no function call optimization)
+            int temp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = temp;
         }
     }
 
-    swap_elements(arr[i + 1], arr[high]);
+    // Inline swap for pivot
+    int temp = arr[i + 1];
+    arr[i + 1] = arr[high];
+    arr[high] = temp;
+    
     return (i + 1);
 }
 
-// Recursive quick sort
+// Basic recursive quick sort (no tail recursion elimination, no insertion sort fallback)
 void quick_sort(int arr[], int low, int high) {
     if (low < high) {
         int pi = partition(arr, low, high);
-
-        // Recursively sort elements before and after partition
+        
+        // Always recurse both sides (no optimization for smaller partition first)
         quick_sort(arr, low, pi - 1);
         quick_sort(arr, pi + 1, high);
     }
@@ -41,8 +41,7 @@ void quick_sort(int arr[], int low, int high) {
 
 // Wrapper for template compatibility
 void quick_sort_wrapper(std::vector<int>& vec) {
-    if (!vec.empty())
-        quick_sort(vec.data(), 0, static_cast<int>(vec.size()) - 1);
+    quick_sort(vec.data(), 0, static_cast<int>(vec.size()) - 1);
 }
 
 // Entry point (uses common benchmarking template)

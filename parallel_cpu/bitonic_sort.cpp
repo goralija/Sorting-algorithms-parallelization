@@ -141,6 +141,6 @@ void bitonic_sort_parallel_wrapper(vector<int>& vec) {
 }
 
 int main(int argc, char* argv[]) {
-    return run_sort("bitonic_sort_omp_avx2", "parallel",
-                    bitonic_sort_parallel_wrapper, argc, argv);
+    //return run_sort("bitonic_sort_omp_avx2", "parallel",
+    //                bitonic_sort_parallel_wrapper, argc, argv);
 }
