@@ -11,7 +11,7 @@
 template <typename SortFunc>
 int run_sort(const std::string& algorithm_name, const std::string& mode, SortFunc sort_function, int argc, char* argv[]) {
     // Parse CLI args
-    size_t n = 100000000;              // default
+    size_t n = 134217728;              // default
     std::string type = "random";    // default
     unsigned int seed = 12345u;     // default deterministic seed
     bool print_array = false;       // default: don't print

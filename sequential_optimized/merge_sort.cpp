@@ -21,7 +21,6 @@ void insertion_sort(int arr[], int l, int r)
         arr[j + 1] = key;
     }
 }
-
 // Merge dva segmenta arr[l..m] i arr[m+1..r] u temp[l..r]
 void merge(int src[], int dest[], int l, int m, int r)
 {
@@ -38,21 +37,18 @@ void merge(int src[], int dest[], int l, int m, int r)
     while (j <= r)
         dest[k++] = src[j++];
 }
-
 // Bottom-up iterativni merge sort s ping-pong temp bufferom
 void merge_sort_opt(int arr[], int n)
 {
     int *temp = new int[n];
     int *src = arr;
     int *dest = temp;
-
     // Prvo sortiraj male segmente insertion sort-om
     for (int i = 0; i < n; i += INSERTION_SORT_THRESHOLD)
     {
         int r = std::min(i + INSERTION_SORT_THRESHOLD - 1, n - 1);
         insertion_sort(src, i, r);
     }
-
     // Bottom-up merge
     for (int width = INSERTION_SORT_THRESHOLD; width < n; width *= 2)
     {
@@ -82,7 +78,6 @@ void merge_sort_opt(int arr[], int n)
         // swap src i dest
         std::swap(src, dest);
     }
-
     // Ako je posljednji rezultat u temp, kopiraj nazad u arr
     if (src != arr)
     {
@@ -97,7 +92,6 @@ void merge_sort_wrapper(std::vector<int> &vec)
 {
     merge_sort_opt(vec.data(), (int)vec.size());
 }
-
 int main(int argc, char *argv[])
 {
     return run_sort("merge_sort_optimized", "sequential", merge_sort_wrapper, argc, argv);
