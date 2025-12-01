@@ -5,6 +5,7 @@
 
 const int INSERTION_SORT_THRESHOLD = 16; // empirijski odabir
 
+//za male blokove- brzi
 void insertion_sort(int arr[], int l, int r)
 {
     for (int i = l + 1; i <= r; i++)
