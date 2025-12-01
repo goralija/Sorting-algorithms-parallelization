@@ -21,6 +21,7 @@ plots/*.png
 Thumbs.db
 
 # Build folder
+*build*
 /build/
 /CMakeFiles/
 /CMakeCache.txt
@@ -63,3 +64,4 @@ plots/**/*.pdf
 config.yaml
 
 *vtune*
+/vtune_results/
