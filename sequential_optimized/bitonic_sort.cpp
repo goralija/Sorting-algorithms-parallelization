@@ -1,95 +1,123 @@
 #include <algorithm>
 #include <vector>
-#include <cstring> // memmove
+#include <cstring>
+#include <immintrin.h>
 #include "main_template.hpp"
 
 using namespace std;
 
 // ---------------------------
-// Insertion sort sa memmove
+// Tunable parameters
 // ---------------------------
-void insertionSort(int *a, int low, int cnt)
+const int INSERTION_THRESHOLD = 32;
+
+// ---------------------------
+// Insertion sort for small sequences
+// ---------------------------
+inline void insertionSort(int *a, int low, int cnt)
 {
     for (int i = low + 1; i < low + cnt; i++)
     {
         int key = a[i];
-        int j = i;
-        while (j > low && a[j - 1] > key)
-            j--;
-        if (j != i)
+        int j = i - 1;
+        while (j >= low && a[j] > key)
         {
-            memmove(a + j + 1, a + j, (i - j) * sizeof(int));
-            a[j] = key;
+            a[j + 1] = a[j];
+            j--;
         }
+        a[j + 1] = key;
     }
 }
 
 // ---------------------------
-// Compare & swap inline
+// Branchless compare & swap (much faster!)
 // ---------------------------
-inline void compAndSwapAsc(int *a, int i, int j)
+inline void compAndSwapAsc(int &a, int &b)
 {
-    if (a[i] > a[j])
-        swap(a[i], a[j]);
-}
-inline void compAndSwapDesc(int *a, int i, int j)
-{
-    if (a[i] < a[j])
-        swap(a[i], a[j]);
+    int minv = min(a, b);
+    int maxv = max(a, b);
+    a = minv;
+    b = maxv;
 }
 
 // ---------------------------
-// Iterativni bitonički merge
+// SIMD compare & swap for 8 pairs at once (AVX2)
 // ---------------------------
-void bitonicMergeIter(int *a, int low, const int cnt, bool asc)
+inline void simdCompAndSwap8Asc(int *a, int *b)
+{
+    __m256i va = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(a));
+    __m256i vb = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(b));
+    __m256i vmin = _mm256_min_epi32(va, vb);
+    __m256i vmax = _mm256_max_epi32(va, vb);
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(a), vmin);
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(b), vmax);
+}
+
+// ---------------------------
+// Optimized bitonic merge with SIMD
+// ---------------------------
+void bitonicMergeIter(int *a, int low, int cnt)
 {
     for (int step = cnt / 2; step > 0; step /= 2)
     {
+        // Process pairs
         for (int i = low; i < low + cnt; i += 2 * step)
         {
-            for (int j = i; j < i + step; j++)
+            int j = i;
+            int end = i + step;
+            
+            // SIMD path: process 8 pairs at a time when step allows
+            if (step >= 8)
             {
-                if (asc)
-                    compAndSwapAsc(a, j, j + step);
-                else
-                    compAndSwapDesc(a, j, j + step);
+                for (; j + 7 < end; j += 8)
+                {
+                    simdCompAndSwap8Asc(a + j, a + j + step);
+                }
+            }
+            
+            // Scalar remainder
+            for (; j < end; j++)
+            {
+                compAndSwapAsc(a[j], a[j + step]);
             }
         }
     }
 }
 
 // ---------------------------
-// Iterativni bitonički sort sa insertion sort pragom
+// Optimized bitonic sort
 // ---------------------------
-void bitonicSortIter(int *a, int n)
+void bitonicSortOpt(int *a, int n)
 {
-    const int INSERTION_THRESHOLD = 32; // tweakabilno
-
-    // Step 1: sort male sekvence insertion sortom
+    // Step 1: sort small sequences with insertion sort
     for (int i = 0; i < n; i += INSERTION_THRESHOLD)
     {
         int len = min(INSERTION_THRESHOLD, n - i);
         insertionSort(a, i, len);
     }
 
-    // Step 2: gradimo bitoničke sekvence iterativno
-    for (int size = INSERTION_THRESHOLD; size <= n; size <<= 1)
+    // Step 2: build bitonic sequences iteratively
+    for (int size = INSERTION_THRESHOLD; size <= n; size *= 2)
     {
         for (int low = 0; low < n; low += size)
         {
-            int mid = size / 2;
             int cnt = min(size, n - low);
+            int mid = cnt / 2;
 
-            // in-place obrni desnu polovinu da bude opadajuća
-            if (mid < cnt)
+            // Reverse right half to create bitonic sequence
+            if (mid > 0 && mid < cnt)
             {
                 int *l = a + low + mid;
                 int *r = a + low + cnt - 1;
                 while (l < r)
-                    swap(*l++, *r--);
+                {
+                    swap(*l, *r);
+                    l++;
+                    r--;
+                }
             }
 
-            bitonicMergeIter(a, low, cnt, true);
+            bitonicMergeIter(a, low, cnt);
         }
     }
 }
@@ -99,7 +127,7 @@ void bitonicSortIter(int *a, int n)
 // ---------------------------
 void bitonic_sort_wrapper(std::vector<int> &vec)
 {
-    bitonicSortIter(vec.data(), vec.size());
+    bitonicSortOpt(vec.data(), vec.size());
 }
 
 // ---------------------------
@@ -107,5 +135,5 @@ void bitonic_sort_wrapper(std::vector<int> &vec)
 // ---------------------------
 int main(int argc, char *argv[])
 {
-    return run_sort("bitonic_sort_iterative_optimized", "sequential", bitonic_sort_wrapper, argc, argv);
+    return run_sort("bitonic_sort", "sequential_optimized", bitonic_sort_wrapper, argc, argv);
 }
