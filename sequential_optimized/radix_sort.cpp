@@ -1,10 +1,10 @@
 // Optimized Radix Sort in C++
 // LSD (Least Significant Digit) radix sort with optimizations:
 // - Base-256 (byte-level) instead of base-10 for fewer passes
+// - Skip passes where all elements have the same byte value
+// - Early termination when remaining bytes are all zero
 // - Preallocated buffers to avoid repeated allocations
-// - Histogram computation in single pass
-// - Cache-friendly memory access patterns
-// - Unrolled loops for better ILP
+// - Cache-friendly memory access patterns with prefetching
 
 #include <iostream>
 #include <vector>
@@ -18,78 +18,64 @@ const int RADIX_BITS = 8;                    // Process 8 bits at a time (base-2
 const int RADIX_SIZE = 1 << RADIX_BITS;      // 256 buckets
 const int RADIX_MASK = RADIX_SIZE - 1;       // 0xFF
 
-// Optimized radix sort using base-256 (byte-level sorting)
-// Only 4 passes needed for 32-bit integers instead of ~10 for base-10
-void radix_sort_optimized(int arr[], int n) {
-    if (n <= 1) return;
-
-    // Preallocate output buffer once
-    int* output = new int[n];
-    
-    // Process each byte (4 passes for 32-bit integers)
-    for (int shift = 0; shift < 32; shift += RADIX_BITS) {
-        // Histogram for counting occurrences of each byte value
-        int count[RADIX_SIZE] = {0};
-        
-        // Count occurrences - single pass through data
-        for (int i = 0; i < n; i++) {
-            int byte_val = (arr[i] >> shift) & RADIX_MASK;
-            count[byte_val]++;
-        }
-        
-        // Convert counts to prefix sums (cumulative positions)
-        int total = 0;
-        for (int i = 0; i < RADIX_SIZE; i++) {
-            int old_count = count[i];
-            count[i] = total;
-            total += old_count;
-        }
-        
-        // Scatter elements to output array based on current byte
-        for (int i = 0; i < n; i++) {
-            int byte_val = (arr[i] >> shift) & RADIX_MASK;
-            output[count[byte_val]++] = arr[i];
-        }
-        
-        // Swap pointers instead of copying (ping-pong buffers)
-        std::swap(arr, output);
-    }
-    
-    // If we did an odd number of passes, result is in output
-    // For 32-bit with 8-bit radix: 4 passes (even), so result is in arr
-    // But we swapped, so arr now points to original output buffer
-    // Need to copy back if necessary
-    
-    // Since we have 4 passes (even number), after all swaps:
-    // - arr points to output buffer (contains sorted data)
-    // - output points to original arr
-    // We need to copy sorted data back to original array
-    memcpy(output, arr, n * sizeof(int));
-    
-    // Now output (original arr) has the sorted data
-    // But we swapped pointers, so we need to swap back
-    std::swap(arr, output);
-    
-    delete[] output;
-}
-
-// Alternative: In-place friendly version that handles the ping-pong correctly
+// Optimized radix sort with skip optimization
+// Skips passes where all elements have the same byte value (common in sorted/few_unique)
 void radix_sort_opt(int arr[], int n) {
     if (n <= 1) return;
 
+    // Find max to determine how many passes we actually need
+    int max_val = arr[0];
+    for (int i = 1; i < n; i++) {
+        if (arr[i] > max_val) max_val = arr[i];
+    }
+    
+    // If max is 0, array is all zeros - already sorted
+    if (max_val == 0) return;
+    
+    // Determine number of passes needed based on max value
+    int num_passes = 0;
+    int temp_max = max_val;
+    while (temp_max > 0) {
+        num_passes++;
+        temp_max >>= RADIX_BITS;
+    }
+    
     int* temp = new int[n];
     int* src = arr;
     int* dst = temp;
     
-    // Process each byte (4 passes for 32-bit integers)
-    for (int shift = 0; shift < 32; shift += RADIX_BITS) {
+    int passes_done = 0;
+    
+    // Process only the necessary bytes
+    for (int pass = 0; pass < num_passes; pass++) {
+        int shift = pass * RADIX_BITS;
+        
         // Histogram for counting occurrences
         int count[RADIX_SIZE] = {0};
         
-        // Count occurrences
+        // Count occurrences with prefetching
         for (int i = 0; i < n; i++) {
+            // Prefetch ahead for better cache utilization
+            if (i + 16 < n) {
+                __builtin_prefetch(&src[i + 16], 0, 0);
+            }
             int byte_val = (src[i] >> shift) & RADIX_MASK;
             count[byte_val]++;
+        }
+        
+        // Check if this pass can be skipped (all elements have same byte value)
+        int non_zero_buckets = 0;
+        int last_non_zero = -1;
+        for (int i = 0; i < RADIX_SIZE; i++) {
+            if (count[i] > 0) {
+                non_zero_buckets++;
+                last_non_zero = i;
+            }
+        }
+        
+        // If all elements fall into one bucket, skip this pass
+        if (non_zero_buckets == 1) {
+            continue;  // No need to scatter, array order unchanged for this byte
         }
         
         // Prefix sum
@@ -100,18 +86,22 @@ void radix_sort_opt(int arr[], int n) {
             total += old_count;
         }
         
-        // Scatter
+        // Scatter with prefetching
         for (int i = 0; i < n; i++) {
+            if (i + 16 < n) {
+                __builtin_prefetch(&src[i + 16], 0, 0);
+            }
             int byte_val = (src[i] >> shift) & RADIX_MASK;
             dst[count[byte_val]++] = src[i];
         }
         
         // Swap src and dst for next pass
         std::swap(src, dst);
+        passes_done++;
     }
     
-    // After 4 passes (even), src points to the sorted result
-    // If src != arr, copy back to arr
+    // If odd number of actual passes done, result is in temp
+    // Copy back to arr if needed
     if (src != arr) {
         memcpy(arr, src, n * sizeof(int));
     }
@@ -127,5 +117,5 @@ void radix_sort_wrapper(std::vector<int>& vec) {
 
 // Entry point (uses common benchmarking template)
 int main(int argc, char* argv[]) {
-    return run_sort("radix_sort_optimized", "sequential", radix_sort_wrapper, argc, argv);
+    return run_sort("radix_sort", "sequential_optimized", radix_sort_wrapper, argc, argv);
 }
