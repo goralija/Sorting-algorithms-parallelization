@@ -63,30 +63,69 @@ def extract_algorithm_name(full_name):
 def create_performance_plot(ax, algo_data, title_suffix, array_type, algo_name, use_log_scale=True):
     """Helper function to create a performance plot with specified scaling."""
     # Define colors and styles
-    colors = {'Sequential Naive': 'red', 'Sequential Optimized': 'blue', 'Parallel CPU': 'green'}
+    colors = {'Sequential Naive': 'red', 'Sequential Optimized': 'blue', 'Parallel CPU': 'green', 'Sequential': 'purple'}
+    
+    # Special case for std_sort - naive and optimized are the same
+    is_std_sort = algo_name == 'std_sort'
     
     # Plot each category for this specific algorithm
     plot_added = False
-    for category, data, marker in [
-        ('Sequential Naive', algo_data['naive'], 'o'), 
-        ('Sequential Optimized', algo_data['optimized'], 's'), 
-        ('Parallel CPU', algo_data['parallel'], '^')
-    ]:
-        if data.empty:
-            continue
-            
-        avg_by_size = data.groupby('ArraySize')['TimeMs'].mean().reset_index()
-        avg_by_size = avg_by_size.sort_values('ArraySize')
+    
+    if is_std_sort:
+        # For std_sort, combine naive and optimized into one "Sequential" line
+        # Use optimized data (or naive if optimized is empty)
+        seq_data = algo_data['optimized'] if not algo_data['optimized'].empty else algo_data['naive']
         
-        if not avg_by_size.empty:
-            ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
-                   color=colors[category],
-                   marker=marker,
-                   label=category, 
-                   linewidth=2, 
-                   markersize=8,
-                   alpha=0.8)
-            plot_added = True
+        if not seq_data.empty:
+            avg_by_size = seq_data.groupby('ArraySize')['TimeMs'].mean().reset_index()
+            avg_by_size = avg_by_size.sort_values('ArraySize')
+            
+            if not avg_by_size.empty:
+                ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
+                       color=colors['Sequential'],
+                       marker='s',
+                       label='Sequential', 
+                       linewidth=2, 
+                       markersize=8,
+                       alpha=0.8)
+                plot_added = True
+        
+        # Plot parallel
+        if not algo_data['parallel'].empty:
+            avg_by_size = algo_data['parallel'].groupby('ArraySize')['TimeMs'].mean().reset_index()
+            avg_by_size = avg_by_size.sort_values('ArraySize')
+            
+            if not avg_by_size.empty:
+                ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
+                       color=colors['Parallel CPU'],
+                       marker='^',
+                       label='Parallel CPU', 
+                       linewidth=2, 
+                       markersize=8,
+                       alpha=0.8)
+                plot_added = True
+    else:
+        # Normal case - plot all three categories
+        for category, data, marker in [
+            ('Sequential Naive', algo_data['naive'], 'o'), 
+            ('Sequential Optimized', algo_data['optimized'], 's'), 
+            ('Parallel CPU', algo_data['parallel'], '^')
+        ]:
+            if data.empty:
+                continue
+                
+            avg_by_size = data.groupby('ArraySize')['TimeMs'].mean().reset_index()
+            avg_by_size = avg_by_size.sort_values('ArraySize')
+            
+            if not avg_by_size.empty:
+                ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
+                       color=colors[category],
+                       marker=marker,
+                       label=category, 
+                       linewidth=2, 
+                       markersize=8,
+                       alpha=0.8)
+                plot_added = True
     
     if plot_added:
         ax.set_xlabel('Array Size', fontsize=12)
@@ -283,33 +322,73 @@ def create_performance_by_size_plot(ax, algo_data, algo_name, title_suffix, use_
     category_colors = {
         'Sequential Naive': 'red',
         'Sequential Optimized': 'blue', 
-        'Parallel CPU': 'green'
+        'Parallel CPU': 'green',
+        'Sequential': 'purple'
     }
     
-    categories_to_plot = ['Sequential Naive', 'Sequential Optimized', 'Parallel CPU']
+    # Special case for std_sort - naive and optimized are the same
+    is_std_sort = algo_name == 'std_sort'
+    
     plot_added = False
     
-    # Plot each category for this algorithm
-    for category in categories_to_plot:
-        cat_data = algo_data[algo_data['Category'] == category]
+    if is_std_sort:
+        # For std_sort, combine naive and optimized into one "Sequential" line
+        seq_data = algo_data[algo_data['Category'].isin(['Sequential Naive', 'Sequential Optimized'])]
         
-        if cat_data.empty:
-            continue
+        if not seq_data.empty:
+            # Average across array types and both categories
+            avg_by_size = seq_data.groupby('ArraySize')['TimeMs'].mean().reset_index()
+            avg_by_size = avg_by_size.sort_values('ArraySize')
+            
+            if not avg_by_size.empty:
+                ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
+                       color=category_colors['Sequential'],
+                       marker='s',
+                       label='Sequential', 
+                       linewidth=2, 
+                       markersize=6,
+                       alpha=0.8)
+                plot_added = True
         
-        # Average across array types for cleaner visualization
-        avg_by_size = cat_data.groupby('ArraySize')['TimeMs'].mean().reset_index()
-        avg_by_size = avg_by_size.sort_values('ArraySize')
+        # Plot parallel
+        parallel_data = algo_data[algo_data['Category'] == 'Parallel CPU']
+        if not parallel_data.empty:
+            avg_by_size = parallel_data.groupby('ArraySize')['TimeMs'].mean().reset_index()
+            avg_by_size = avg_by_size.sort_values('ArraySize')
+            
+            if not avg_by_size.empty:
+                ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
+                       color=category_colors['Parallel CPU'],
+                       marker='^',
+                       label='Parallel CPU', 
+                       linewidth=2, 
+                       markersize=6,
+                       alpha=0.8)
+                plot_added = True
+    else:
+        # Normal case - plot all three categories
+        categories_to_plot = ['Sequential Naive', 'Sequential Optimized', 'Parallel CPU']
         
-        if not avg_by_size.empty:
-            # Plot with category color
-            ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
-                   color=category_colors[category],
-                   marker='o',
-                   label=category, 
-                   linewidth=2, 
-                   markersize=6,
-                   alpha=0.8)
-            plot_added = True
+        for category in categories_to_plot:
+            cat_data = algo_data[algo_data['Category'] == category]
+            
+            if cat_data.empty:
+                continue
+            
+            # Average across array types for cleaner visualization
+            avg_by_size = cat_data.groupby('ArraySize')['TimeMs'].mean().reset_index()
+            avg_by_size = avg_by_size.sort_values('ArraySize')
+            
+            if not avg_by_size.empty:
+                # Plot with category color
+                ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'], 
+                       color=category_colors[category],
+                       marker='o',
+                       label=category, 
+                       linewidth=2, 
+                       markersize=6,
+                       alpha=0.8)
+                plot_added = True
     
     if plot_added:
         ax.set_xlabel('Array Size', fontsize=12)
@@ -387,6 +466,140 @@ def plot_performance_by_size(df, output_path):
             print(f"✅ {algo_name} performance by size plot (linear) saved to: {linear_output}")
         plt.close(fig_linear)
 
+def plot_all_optimized_algorithms(df, output_path):
+    """
+    Plot all parallel_cpu and sequential_optimized algorithms on the same graph.
+    Creates one plot for each array type and one combined plot for all array types.
+    Generates both logarithmic and linear scale versions.
+    """
+    print("\n📊 Generating all optimized algorithms comparison plots...")
+    
+    # Filter for parallel_cpu and sequential_optimized algorithms only
+    filtered_df = df[df['Algorithm'].str.contains('parallel_cpu_|sequential_optimized_', regex=True)]
+    
+    if filtered_df.empty:
+        print("⚠️  No parallel_cpu or sequential_optimized algorithms found")
+        return
+    
+    # Create output folder
+    comparison_folder = output_path.parent / 'all_algorithms_comparison'
+    log_folder = comparison_folder / 'logarithmic'
+    linear_folder = comparison_folder / 'linear'
+    
+    log_folder.mkdir(parents=True, exist_ok=True)
+    linear_folder.mkdir(parents=True, exist_ok=True)
+    
+    # Get unique algorithms and array types
+    algorithms = filtered_df['Algorithm'].unique()
+    array_types = filtered_df['ArrayType'].unique()
+    
+    # Define colors - use a colormap for many algorithms
+    colors = plt.cm.tab20(np.linspace(0, 1, len(algorithms)))
+    algo_colors = {algo: colors[i] for i, algo in enumerate(algorithms)}
+    
+    # Define markers
+    markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', 'h', '*', 'X', 'P']
+    algo_markers = {algo: markers[i % len(markers)] for i, algo in enumerate(algorithms)}
+    
+    def create_comparison_plot(ax, data, title, use_log_scale=True):
+        """Helper to create the comparison plot."""
+        plot_added = False
+        
+        for algo in algorithms:
+            algo_data = data[data['Algorithm'] == algo]
+            if algo_data.empty:
+                continue
+            
+            # Average by array size
+            avg_by_size = algo_data.groupby('ArraySize')['TimeMs'].mean().reset_index()
+            avg_by_size = avg_by_size.sort_values('ArraySize')
+            
+            if not avg_by_size.empty:
+                # Create cleaner label (remove prefix)
+                label = algo.replace('parallel_cpu_', 'parallel: ').replace('sequential_optimized_', 'seq_opt: ')
+                
+                ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'],
+                       color=algo_colors[algo],
+                       marker=algo_markers[algo],
+                       label=label,
+                       linewidth=2,
+                       markersize=6,
+                       alpha=0.8)
+                plot_added = True
+        
+        if plot_added:
+            ax.set_xlabel('Array Size', fontsize=12)
+            ax.set_ylabel('Execution Time (ms)', fontsize=12)
+            ax.set_title(title, fontsize=14, fontweight='bold')
+            
+            if use_log_scale:
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+            
+            ax.grid(True, alpha=0.3)
+            # Place legend outside the plot
+            ax.legend(fontsize=9, loc='center left', bbox_to_anchor=(1.02, 0.5))
+        
+        return plot_added
+    
+    # 1. Create plot for each array type
+    for array_type in array_types:
+        type_data = filtered_df[filtered_df['ArrayType'] == array_type]
+        
+        if type_data.empty:
+            continue
+        
+        safe_array_type = array_type.replace(' ', '_').replace('/', '_').lower()
+        
+        # Logarithmic scale
+        fig_log, ax_log = plt.subplots(figsize=(14, 8))
+        title_log = f'All Optimized Algorithms - {array_type} Arrays (Log Scale)'
+        plot_added = create_comparison_plot(ax_log, type_data, title_log, use_log_scale=True)
+        
+        if plot_added:
+            plt.tight_layout()
+            log_output = log_folder / f'comparison_{safe_array_type}.png'
+            plt.savefig(log_output, dpi=300, bbox_inches='tight')
+            print(f"✅ Comparison plot (log) for {array_type} saved to: {log_output}")
+        plt.close(fig_log)
+        
+        # Linear scale
+        fig_linear, ax_linear = plt.subplots(figsize=(14, 8))
+        title_linear = f'All Optimized Algorithms - {array_type} Arrays (Linear Scale)'
+        plot_added = create_comparison_plot(ax_linear, type_data, title_linear, use_log_scale=False)
+        
+        if plot_added:
+            plt.tight_layout()
+            linear_output = linear_folder / f'comparison_{safe_array_type}.png'
+            plt.savefig(linear_output, dpi=300, bbox_inches='tight')
+            print(f"✅ Comparison plot (linear) for {array_type} saved to: {linear_output}")
+        plt.close(fig_linear)
+    
+    # 2. Create combined plot (all array types averaged)
+    # Logarithmic scale
+    fig_log, ax_log = plt.subplots(figsize=(14, 8))
+    title_log = 'All Optimized Algorithms - Combined (Log Scale)'
+    plot_added = create_comparison_plot(ax_log, filtered_df, title_log, use_log_scale=True)
+    
+    if plot_added:
+        plt.tight_layout()
+        log_output = log_folder / 'comparison_all_types.png'
+        plt.savefig(log_output, dpi=300, bbox_inches='tight')
+        print(f"✅ Combined comparison plot (log) saved to: {log_output}")
+    plt.close(fig_log)
+    
+    # Linear scale
+    fig_linear, ax_linear = plt.subplots(figsize=(14, 8))
+    title_linear = 'All Optimized Algorithms - Combined (Linear Scale)'
+    plot_added = create_comparison_plot(ax_linear, filtered_df, title_linear, use_log_scale=False)
+    
+    if plot_added:
+        plt.tight_layout()
+        linear_output = linear_folder / 'comparison_all_types.png'
+        plt.savefig(linear_output, dpi=300, bbox_inches='tight')
+        print(f"✅ Combined comparison plot (linear) saved to: {linear_output}")
+    plt.close(fig_linear)
+
 def main():
     """Main function to generate all plots."""
     print("=" * 60)
@@ -415,6 +628,7 @@ def main():
     plot_speedup_vs_sequential(df, PLOTS_DIR / 'speedup_vs_sequential.png')
     plot_comparison_with_backup(df, backup_files, PLOTS_DIR / 'improvement_vs_previous.png')
     plot_performance_by_size(df, PLOTS_DIR / 'performance_by_array_size.png')
+    plot_all_optimized_algorithms(df, PLOTS_DIR / 'all_optimized_comparison.png')
     
     print("\n" + "=" * 60)
     print("✅ All plots generated successfully!")
