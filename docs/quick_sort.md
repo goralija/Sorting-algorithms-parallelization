@@ -41,3 +41,4 @@
 Optimizovana sekvencijalna implementacija Quick Sort-a pruža značajno ubrzanje, posebno za male i skoro sortirane nizove.  
 Ovo je **praktična osnova za paralelizaciju** i dalje optimizacije (CPU/GPU).
 
+...
