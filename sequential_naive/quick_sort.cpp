@@ -1,6 +1,7 @@
 // Quick sort in C++
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include "main_template.hpp"
 
 using namespace std;
@@ -28,20 +29,43 @@ int partition(int arr[], int low, int high) {
     return (i + 1);
 }
 
-// Basic recursive quick sort (no tail recursion elimination, no insertion sort fallback)
-void quick_sort(int arr[], int low, int high) {
+// Simple insertion sort for fallback
+void insertion_sort(int arr[], int low, int high) {
+    for (int i = low + 1; i <= high; i++) {
+        int key = arr[i];
+        int j = i - 1;
+        while (j >= low && arr[j] > key) {
+            arr[j + 1] = arr[j];
+            j--;
+        }
+        arr[j + 1] = key;
+    }
+}
+
+// Basic recursive quick sort with depth limit to prevent worst-case stack overflow
+void quick_sort(int arr[], int low, int high, int depth, int max_depth) {
     if (low < high) {
+        // If recursion too deep, fall back to insertion sort to prevent stack overflow
+        if (depth > max_depth) {
+            insertion_sort(arr, low, high);
+            return;
+        }
+        
         int pi = partition(arr, low, high);
         
         // Always recurse both sides (no optimization for smaller partition first)
-        quick_sort(arr, low, pi - 1);
-        quick_sort(arr, pi + 1, high);
+        quick_sort(arr, low, pi - 1, depth + 1, max_depth);
+        quick_sort(arr, pi + 1, high, depth + 1, max_depth);
     }
 }
 
 // Wrapper for template compatibility
 void quick_sort_wrapper(std::vector<int>& vec) {
-    quick_sort(vec.data(), 0, static_cast<int>(vec.size()) - 1);
+    if (vec.empty()) return;
+    int n = vec.size();
+    // Set max depth to 3 * log2(n) - higher to allow more recursion before fallback
+    int max_depth = 3 * (int)log2(n);
+    quick_sort(vec.data(), 0, n - 1, 0, max_depth);
 }
 
 // Entry point (uses common benchmarking template)

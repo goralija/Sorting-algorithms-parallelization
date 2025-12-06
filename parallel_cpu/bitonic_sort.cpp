@@ -12,7 +12,6 @@ using namespace std;
 // ---------------------------
 const int INSERTION_THRESHOLD = 128;
 const int TASK_THRESHOLD = 1 << 20;
-const int SIMD_BYTES = 32;
 
 // ---------------------------
 // Insertion sort
@@ -34,67 +33,93 @@ void insertionSort(int *a, int low, int cnt)
 }
 
 // ---------------------------
-// Compare & swap
+// Branchless compare & swap
 // ---------------------------
-inline void compAndSwap(int *a, int i, int j, bool asc)
+inline void compAndSwapAsc(int &a, int &b)
 {
-    if ((asc && a[i] > a[j]) || (!asc && a[i] < a[j]))
-        swap(a[i], a[j]);
+    int minv = min(a, b);
+    int maxv = max(a, b);
+    a = minv;
+    b = maxv;
 }
 
 // ---------------------------
-// Iterativni bitonički merge
+// SIMD compare & swap 8 elem (AVX2)
 // ---------------------------
-void bitonicMergeIter(int *a, int low, int cnt, bool asc)
+inline void simdCompAndSwap8Asc(int *a, int *b)
+{
+    __m256i va = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(a));
+    __m256i vb = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(b));
+    __m256i vmin = _mm256_min_epi32(va, vb);
+    __m256i vmax = _mm256_max_epi32(va, vb);
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(a), vmin);
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(b), vmax);
+}
+
+// ---------------------------
+// Bitonički merge sa SIMD + scalar fallback
+// ---------------------------
+void bitonicMergeIter(int *a, int low, int cnt)
 {
     for (int step = cnt / 2; step > 0; step /= 2)
     {
         for (int i = low; i < low + cnt; i += 2 * step)
         {
-            for (int j = i; j < i + step; j++)
+            int j = i;
+            int end = i + step;
+
+            // SIMD path: process 8 pairs at a time
+            if (step >= 8)
             {
-                compAndSwap(a, j, j + step, asc);
+                for (; j + 7 < end; j += 8)
+                {
+                    simdCompAndSwap8Asc(a + j, a + j + step);
+                }
+            }
+
+            // Scalar fallback
+            for (; j < end; j++)
+            {
+                compAndSwapAsc(a[j], a[j + step]);
             }
         }
     }
 }
 
 // ---------------------------
-// Paralelni bitonički merge - ISPRAVLJEN
+// Paralelni bitonički merge
 // ---------------------------
-void bitonicMergeParallel(int *a, int low, int cnt, bool asc)
+void bitonicMergeParallel(int *a, int low, int cnt)
 {
     if (cnt <= TASK_THRESHOLD)
     {
-        bitonicMergeIter(a, low, cnt, asc);
+        bitonicMergeIter(a, low, cnt);
         return;
     }
 
     int step = cnt / 2;
 
-// Paralelno uporedi i swap-uj elemente
+    // Parallel compare & swap
 #pragma omp parallel for
     for (int i = low; i < low + step; i++)
     {
-        compAndSwap(a, i, i + step, asc);
+        compAndSwapAsc(a[i], a[i + step]);
     }
 
-// Paralelno merge-uj podsekvence
+    // Recursive parallel merge
 #pragma omp task
-    bitonicMergeParallel(a, low, step, asc);
-
+    bitonicMergeParallel(a, low, step);
 #pragma omp task
-    bitonicMergeParallel(a, low + step, cnt - step, asc);
-
+    bitonicMergeParallel(a, low + step, cnt - step);
 #pragma omp taskwait
 }
 
 // ---------------------------
-// Paralelni bitonički sort - ISPRAVLJEN
+// Paralelni bitonički sort
 // ---------------------------
 void bitonicSortIterParallel(int *a, int n)
 {
-// Korak 1: insertion sort male sekvence
+    // Step 1: insertion sort male sekvence
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < n; i += INSERTION_THRESHOLD)
     {
@@ -102,16 +127,16 @@ void bitonicSortIterParallel(int *a, int n)
         insertionSort(a, i, len);
     }
 
-    // Korak 2: gradnja bitoničkih sekvenci
+    // Step 2: build bitonic sequences
     for (int size = INSERTION_THRESHOLD; size <= n; size <<= 1)
     {
 #pragma omp parallel for schedule(dynamic)
         for (int low = 0; low < n; low += size)
         {
-            int mid = size / 2;
             int cnt = min(size, n - low);
+            int mid = cnt / 2;
 
-            // Obrni desnu polovinu
+            // Obrni desnu polovinu za bitoničku sekvencu
             if (mid < cnt)
             {
                 int *l = a + low + mid;
@@ -120,15 +145,15 @@ void bitonicSortIterParallel(int *a, int n)
                     swap(*l++, *r--);
             }
 
-            // ISPRAVKA: Koristi paralelni merge za velike sekvence
+            // Koristi paralelni merge za velike sekvence
             if (cnt >= TASK_THRESHOLD)
             {
 #pragma omp task
-                bitonicMergeParallel(a, low, cnt, true);
+                bitonicMergeParallel(a, low, cnt);
             }
             else
             {
-                bitonicMergeIter(a, low, cnt, true);
+                bitonicMergeIter(a, low, cnt);
             }
         }
 #pragma omp taskwait
@@ -148,5 +173,5 @@ void bitonic_sort_wrapper(std::vector<int> &vec)
 // ---------------------------
 int main(int argc, char *argv[])
 {
-    return run_sort("bitonic_sort_iterative_parallel_fixed", "parallel", bitonic_sort_wrapper, argc, argv);
+    return run_sort("bitonic_sort_parallel_simd", "parallel_simd", bitonic_sort_wrapper, argc, argv);
 }

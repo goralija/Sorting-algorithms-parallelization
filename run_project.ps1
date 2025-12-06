@@ -57,6 +57,7 @@ function Test-AlgorithmFilter {
         if ($filterLower -eq "merge" -and $exeLower -like "*merge*") { return $true }
         if ($filterLower -eq "bitonic" -and $exeLower -like "*bitonic*") { return $true }
         if ($filterLower -eq "std" -and $exeLower -like "*std*") { return $true }
+        if ($filterLower -eq "radix" -and $exeLower -like "*radix*") { return $true }
         
         # Check implementation category filters
         if ($filterLower -eq "seq-naive" -and $exeLower -like "sequential_naive*") { return $true }
