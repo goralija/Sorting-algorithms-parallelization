@@ -8,7 +8,7 @@ __pycache__/
 venv/
 
 # Data files (optional large files)
-data/*.csv
+data/*
 
 # Plots
 plots/*.png
