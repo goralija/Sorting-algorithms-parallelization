@@ -600,6 +600,255 @@ def plot_all_optimized_algorithms(df, output_path):
         print(f"✅ Combined comparison plot (linear) saved to: {linear_output}")
     plt.close(fig_linear)
 
+def load_hyperparameter_tuning_data(filepath):
+    """Load hyperparameter tuning data from text file."""
+    if not filepath.exists():
+        return None, None
+    
+    configs = {}
+    current_config = None
+    current_data = []
+    
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                
+                # Check if this is a config header (e.g., "A: INSERTION=48, ...")
+                if ':' in line and ',' in line and 'parallel_cpu' not in line:
+                    # Save previous config data
+                    if current_config and current_data:
+                        configs[current_config] = current_data
+                    
+                    # Parse new config
+                    parts = line.split(':', 1)
+                    current_config = parts[0].strip()
+                    current_data = []
+                
+                # Check if this is a data line
+                elif line.startswith('parallel_cpu'):
+                    parts = line.split(',')
+                    if len(parts) >= 4:
+                        current_data.append({
+                            'Algorithm': parts[0],
+                            'ArraySize': int(parts[1]),
+                            'ArrayType': parts[2],
+                            'TimeMs': float(parts[3])
+                        })
+            
+            # Save last config
+            if current_config and current_data:
+                configs[current_config] = current_data
+        
+        # Convert to DataFrames
+        config_dfs = {}
+        for config_name, data in configs.items():
+            if data:
+                config_dfs[config_name] = pd.DataFrame(data)
+        
+        return config_dfs
+    
+    except Exception as e:
+        print(f"❌ Error reading hyperparameter tuning file: {e}")
+        return None
+
+def plot_hyperparameter_tuning(output_path):
+    """
+    Plot hyperparameter tuning results for all algorithms.
+    Automatically detects all hyperparameter_tuning_*.txt files in data directory.
+    Shows performance comparison across different configurations.
+    """
+    print("\n📊 Generating hyperparameter tuning plots...")
+    
+    # Find all hyperparameter tuning files
+    tuning_files = list(DATA_DIR.glob('hyperparameter_tuning_*.txt'))
+    
+    if not tuning_files:
+        print("⚠️  No hyperparameter tuning files found")
+        return
+    
+    print(f"📁 Found {len(tuning_files)} hyperparameter tuning file(s)")
+    
+    for tuning_file in tuning_files:
+        # Extract algorithm name from filename (e.g., "hyperparameter_tuning_quick_sort.txt" -> "quick_sort")
+        algo_name = tuning_file.stem.replace('hyperparameter_tuning_', '')
+        
+        config_dfs = load_hyperparameter_tuning_data(tuning_file)
+        
+        if not config_dfs:
+            print(f"⚠️  No data found in {tuning_file.name}")
+            continue
+        
+        print(f"✅ Loaded {len(config_dfs)} configurations from {tuning_file.name}")
+        
+        # Create output folder for this algorithm
+        tuning_folder = output_path.parent / 'hyperparameter_tuning' / algo_name
+        tuning_folder.mkdir(parents=True, exist_ok=True)
+        
+        # Define colors for configurations
+        config_colors = plt.cm.tab20(np.linspace(0, 1, len(config_dfs)))
+        color_map = {config: config_colors[i] for i, config in enumerate(config_dfs.keys())}
+        
+        # Get all array types
+        all_array_types = set()
+        for df in config_dfs.values():
+            all_array_types.update(df['ArrayType'].unique())
+        
+        # Get largest array size in the data
+        max_array_size = 0
+        for df in config_dfs.values():
+            max_array_size = max(max_array_size, df['ArraySize'].max())
+        
+        # 1. Plot for each array type
+        for array_type in all_array_types:
+            fig, ax = plt.subplots(figsize=(14, 8))
+            
+            for config_name, df in config_dfs.items():
+                type_data = df[df['ArrayType'] == array_type]
+                if type_data.empty:
+                    continue
+                
+                avg_by_size = type_data.groupby('ArraySize')['TimeMs'].mean().reset_index()
+                avg_by_size = avg_by_size.sort_values('ArraySize')
+                
+                ax.plot(avg_by_size['ArraySize'], avg_by_size['TimeMs'],
+                       color=color_map[config_name],
+                       marker='o',
+                       label=config_name,
+                       linewidth=2,
+                       markersize=6,
+                       alpha=0.8)
+            
+            ax.set_xlabel('Array Size', fontsize=12)
+            ax.set_ylabel('Execution Time (ms)', fontsize=12)
+            ax.set_title(f'Hyperparameter Tuning ({algo_name}) - {array_type} Arrays', fontsize=14, fontweight='bold')
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=9, loc='center left', bbox_to_anchor=(1.02, 0.5))
+            
+            plt.tight_layout()
+            safe_type = array_type.replace(' ', '_').lower()
+            output_file = tuning_folder / f'tuning_{safe_type}.png'
+            plt.savefig(output_file, dpi=300, bbox_inches='tight')
+            print(f"✅ {algo_name} tuning plot for {array_type} saved to: {output_file}")
+            plt.close()
+        
+        # 2. Create summary bar chart for largest array size
+        num_types = len(all_array_types)
+        if num_types > 0:
+            rows = (num_types + 1) // 2
+            cols = min(2, num_types)
+            fig, axes = plt.subplots(rows, cols, figsize=(8 * cols, 6 * rows))
+            if num_types == 1:
+                axes = [axes]
+            else:
+                axes = axes.flatten() if num_types > 2 else list(axes)
+            
+            for idx, array_type in enumerate(sorted(all_array_types)):
+                ax = axes[idx]
+                
+                config_times = {}
+                for config_name, df in config_dfs.items():
+                    type_data = df[(df['ArrayType'] == array_type) & (df['ArraySize'] == max_array_size)]
+                    if not type_data.empty:
+                        config_times[config_name] = type_data['TimeMs'].mean()
+                
+                if config_times:
+                    configs = list(config_times.keys())
+                    times = list(config_times.values())
+                    colors = [color_map[c] for c in configs]
+                    
+                    bars = ax.bar(configs, times, color=colors, alpha=0.8)
+                    
+                    # Highlight best config
+                    min_time = min(times)
+                    for bar, time in zip(bars, times):
+                        if time == min_time:
+                            bar.set_edgecolor('gold')
+                            bar.set_linewidth(3)
+                    
+                    ax.set_xlabel('Configuration', fontsize=11)
+                    ax.set_ylabel('Execution Time (ms)', fontsize=11)
+                    ax.set_title(f'{array_type} ({max_array_size:,} elements)', fontsize=12, fontweight='bold')
+                    ax.tick_params(axis='x', rotation=45)
+                    ax.grid(True, alpha=0.3, axis='y')
+            
+            # Hide unused subplots
+            for idx in range(len(all_array_types), len(axes)):
+                axes[idx].set_visible(False)
+            
+            plt.suptitle(f'Hyperparameter Tuning Summary - {algo_name.replace("_", " ").title()}', fontsize=14, fontweight='bold')
+            plt.tight_layout()
+            output_file = tuning_folder / f'tuning_summary_{max_array_size}.png'
+            plt.savefig(output_file, dpi=300, bbox_inches='tight')
+            print(f"✅ {algo_name} tuning summary saved to: {output_file}")
+            plt.close()
+        
+        # 3. Create heatmap of average performance
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Build matrix: rows=configs, cols=array_types
+        configs = sorted(config_dfs.keys())
+        array_types_sorted = sorted(all_array_types)
+        
+        matrix = np.zeros((len(configs), len(array_types_sorted)))
+        
+        for i, config in enumerate(configs):
+            df = config_dfs[config]
+            for j, array_type in enumerate(array_types_sorted):
+                type_data = df[(df['ArrayType'] == array_type) & (df['ArraySize'] == max_array_size)]
+                if not type_data.empty:
+                    matrix[i, j] = type_data['TimeMs'].mean()
+        
+        # Normalize each column to show relative performance (best = 1.0)
+        col_mins = matrix.min(axis=0)
+        col_mins[col_mins == 0] = 1  # Avoid division by zero
+        normalized = matrix / col_mins
+        
+        im = ax.imshow(normalized, cmap='RdYlGn_r', aspect='auto', vmin=1.0, vmax=2.0)
+        
+        ax.set_xticks(np.arange(len(array_types_sorted)))
+        ax.set_yticks(np.arange(len(configs)))
+        ax.set_xticklabels(array_types_sorted, fontsize=10)
+        ax.set_yticklabels(configs, fontsize=10)
+        
+        # Add text annotations
+        for i in range(len(configs)):
+            for j in range(len(array_types_sorted)):
+                text = f'{normalized[i, j]:.2f}x'
+                color = 'white' if normalized[i, j] > 1.5 else 'black'
+                ax.text(j, i, text, ha='center', va='center', color=color, fontsize=9)
+        
+        ax.set_title(f'{algo_name.replace("_", " ").title()} - Relative Performance (1.0 = Best)\n{max_array_size:,} elements', 
+                    fontsize=14, fontweight='bold')
+        
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.set_label('Relative Time (vs best)', fontsize=11)
+        
+        plt.tight_layout()
+        output_file = tuning_folder / 'tuning_heatmap.png'
+        plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        print(f"✅ {algo_name} tuning heatmap saved to: {output_file}")
+        plt.close()
+        
+        # 4. Print best configuration summary
+        print(f"\n📊 Best configurations for {algo_name} ({max_array_size:,} elements):")
+        for array_type in sorted(all_array_types):
+            best_config = None
+            best_time = float('inf')
+            for config_name, df in config_dfs.items():
+                type_data = df[(df['ArrayType'] == array_type) & (df['ArraySize'] == max_array_size)]
+                if not type_data.empty:
+                    avg_time = type_data['TimeMs'].mean()
+                    if avg_time < best_time:
+                        best_time = avg_time
+                        best_config = config_name
+            if best_config:
+                print(f"   {array_type}: {best_config} ({best_time:.1f} ms)")
+
 def main():
     """Main function to generate all plots."""
     print("=" * 60)
@@ -629,6 +878,7 @@ def main():
     plot_comparison_with_backup(df, backup_files, PLOTS_DIR / 'improvement_vs_previous.png')
     plot_performance_by_size(df, PLOTS_DIR / 'performance_by_array_size.png')
     plot_all_optimized_algorithms(df, PLOTS_DIR / 'all_optimized_comparison.png')
+    plot_hyperparameter_tuning(PLOTS_DIR / 'hyperparameter_tuning.png')
     
     print("\n" + "=" * 60)
     print("✅ All plots generated successfully!")

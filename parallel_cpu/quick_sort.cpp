@@ -17,13 +17,13 @@ using namespace std;
 const int INSERTION_SORT_THRESHOLD = 32;
 const int AVX_PARTITION_THRESHOLD = 512;
 const int CACHE_LINE_SIZE = 64;
-const int MAX_RECURSION_DEPTH_FACTOR = 2;
+const int MAX_RECURSION_DEPTH_FACTOR = 3;
 
 // Dynamic task threshold based on available cores
 inline int get_task_threshold(int total_size) {
     int cores = omp_get_max_threads();
     // Much higher threshold to ensure parallelism only when beneficial
-    return max(65536, total_size / cores);
+    return 65536;
 }
 
 // Cache-friendly block size (L1 cache optimized)
