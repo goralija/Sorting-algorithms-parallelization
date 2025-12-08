@@ -19,9 +19,9 @@
 #endif
 
 // ---------------------- Tunable parameters ----------------------
-const int INSERTION_SORT_THRESHOLD = 128;   // for small runs
-const int TASK_THRESHOLD = 1 << 20;         // spawn OpenMP tasks for ranges >= 65536
-const int MERGE_PATH_MIN_CHUNK = 16384 * 4; // min total size to use merge-path splitting
+const int INSERTION_SORT_THRESHOLD = 256;   // for small runs
+const int TASK_THRESHOLD = 1048576;         // spawn OpenMP tasks for ranges >= 1048576
+const int MERGE_PATH_MIN_CHUNK = 65536; // min total size to use merge-path splitting
 const int SIMD_BYTES = 32;                  // AVX2 = 256 bits = 32 bytes
 const size_t ALIGN_BYTES = 64;
 
