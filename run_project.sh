@@ -66,6 +66,7 @@ test_algorithm_filter() {
         if [[ "$filter_lower" == "merge" ]] && [[ "$exe_lower" == *"merge"* ]]; then return 0; fi
         if [[ "$filter_lower" == "bitonic" ]] && [[ "$exe_lower" == *"bitonic"* ]]; then return 0; fi
         if [[ "$filter_lower" == "std" ]] && [[ "$exe_lower" == *"std"* ]]; then return 0; fi
+        if [[ "$filter_lower" == "radix" ]] && [[ "$exe_lower" == *"radix"* ]]; then return 0; fi
         
         # Check implementation category filters
         if [[ "$filter_lower" == "seq-naive" ]] && [[ "$exe_lower" == sequential_naive* ]]; then return 0; fi

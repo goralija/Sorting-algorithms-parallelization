@@ -6,10 +6,12 @@
 
 using namespace std;
 
-const int INSERTION_SORT_THRESHOLD = 16; // Keep small for best performance
+const int INSERTION_SORT_THRESHOLD = 24; // Slightly larger for better cache utilization
 
 // Optimized insertion sort with sentinels (no bounds checking in inner loop)
 inline void insertion_sort(int* arr, int n) {
+    if (n <= 1) return;
+    
     // Place smallest element at position 0 as sentinel
     int min_idx = 0;
     for (int i = 1; i < n; i++) {

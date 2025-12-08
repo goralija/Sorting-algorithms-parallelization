@@ -22,7 +22,8 @@ const int MAX_RECURSION_DEPTH_FACTOR = 2;
 // Dynamic task threshold based on available cores
 inline int get_task_threshold(int total_size) {
     int cores = omp_get_max_threads();
-    return max(1024, total_size / (cores * 4));
+    // Much higher threshold to ensure parallelism only when beneficial
+    return max(65536, total_size / cores);
 }
 
 // Cache-friendly block size (L1 cache optimized)
@@ -125,39 +126,66 @@ inline int avx_backward_scan(int arr[], int start, int end, int pivot) {
     return j;
 }
 
-// Hybrid AVX-scalar partition
-inline int hybrid_partition(int arr[], int low, int high) {
+// Fast Hoare partition (same as sequential optimized)
+inline int partition_hoare(int arr[], int low, int high) {
+    // Inline median-of-three
+    int mid = low + ((high - low) >> 1);
+    if (arr[mid] < arr[low]) swap(arr[mid], arr[low]);
+    if (arr[high] < arr[low]) swap(arr[high], arr[low]);
+    if (arr[high] < arr[mid]) swap(arr[high], arr[mid]);
+    
+    int pivot = arr[mid];
+    int i = low - 1;
+    int j = high + 1;
+    
+    while (true) {
+        do { i++; } while (arr[i] < pivot);
+        do { j--; } while (arr[j] > pivot);
+        
+        if (i >= j) return j;
+        
+        swap(arr[i], arr[j]);
+    }
+}
+
+// 3-way partitioning (Dutch National Flag) for handling duplicates efficiently
+// Returns a pair: [lt, gt] where arr[low..lt-1] < pivot, arr[lt..gt] == pivot, arr[gt+1..high] > pivot
+inline void partition_3way(int arr[], int low, int high, int& lt, int& gt) {
+    if (low >= high) {
+        lt = low;
+        gt = high;
+        return;
+    }
+    
     // Select pivot using median-of-three
     int pivot_idx = select_pivot(arr, low, high);
     int pivot = arr[pivot_idx];
     
-    // Move pivot to temporary position for Hoare partition
-    swap(arr[pivot_idx], arr[low]);
-    
+    // 3-way partitioning
     int i = low;
-    int j = high;
+    lt = low;
+    gt = high;
     
-    // Use AVX for large partitions, scalar for small ones
-    if (high - low + 1 >= AVX_PARTITION_THRESHOLD) {
-        i = avx_forward_scan(arr, low + 1, high, pivot);
-        j = avx_backward_scan(arr, low + 1, high, pivot);
-    } else {
-        // Scalar scans
-        i = low + 1;
-        j = high;
-        while (true) {
-            while (i <= high && arr[i] < pivot) i++;
-            while (j > low && arr[j] > pivot) j--;
-            if (i >= j) break;
-            swap(arr[i], arr[j]);
+    while (i <= gt) {
+        if (arr[i] < pivot) {
+            swap(arr[lt], arr[i]);
+            lt++;
             i++;
-            j--;
+        } else if (arr[i] > pivot) {
+            swap(arr[i], arr[gt]);
+            gt--;
+        } else {
+            i++;
         }
     }
-    
-    // Restore pivot to correct position
-    swap(arr[low], arr[j]);
-    return j;
+}
+
+// Simple 2-way partition for compatibility
+inline int hybrid_partition(int arr[], int low, int high) {
+    int lt, gt;
+    partition_3way(arr, low, high, lt, gt);
+    // Return middle of equal range for 2-way compatibility
+    return (lt + gt) / 2;
 }
 
 // Cache-aware sequential quicksort with tail recursion
@@ -165,37 +193,30 @@ void cache_aware_quick_sort(int arr[], int low, int high, int depth) {
     const int cache_block_size = get_cache_block_size();
     const int max_depth = MAX_RECURSION_DEPTH_FACTOR * (int)log2(high - low + 1);
     
-    // Switch to heap sort if recursion depth too high
+    // Switch to insertion sort if recursion depth too high
     if (depth > max_depth) {
-        heap_sort(arr + low, high - low + 1);
+        insertion_sort(arr + low, high - low + 1);
         return;
     }
     
-    while (high - low > INSERTION_SORT_THRESHOLD) {
-        // For very large blocks, use cache-aware processing
-        if (high - low > cache_block_size) {
-            int pi = hybrid_partition(arr, low, high);
-            
-            // Sort smaller partition recursively, larger iteratively
-            if (pi - low < high - pi) {
-                cache_aware_quick_sort(arr, low, pi - 1, depth + 1);
-                low = pi + 1;
-            } else {
-                cache_aware_quick_sort(arr, pi + 1, high, depth + 1);
-                high = pi - 1;
+    while (low < high && high - low > INSERTION_SORT_THRESHOLD) {
+        // Use fast Hoare partition (same as sequential optimized)
+        int pi = partition_hoare(arr, low, high);
+        
+        // Hoare returns last index of left partition
+        int left_size = pi - low + 1;
+        int right_size = high - pi;
+        
+        if (left_size < right_size) {
+            if (left_size > 1) {
+                cache_aware_quick_sort(arr, low, pi, depth + 1);
             }
+            low = pi + 1;
         } else {
-            // Standard optimized quicksort for cache-sized blocks
-            int pi = hybrid_partition(arr, low, high);
-            
-            // Always recurse on smaller partition first for better stack usage
-            if (pi - low < high - pi) {
-                cache_aware_quick_sort(arr, low, pi - 1, depth + 1);
-                low = pi + 1;
-            } else {
+            if (right_size > 1) {
                 cache_aware_quick_sort(arr, pi + 1, high, depth + 1);
-                high = pi - 1;
             }
+            high = pi;
         }
     }
     
@@ -225,19 +246,39 @@ void quick_sort_parallel(int arr[], int low, int high, int depth, int task_thres
         return;
     }
     
-    // Check recursion depth and switch to heap sort if too deep
+    // Check recursion depth and switch to insertion sort if too deep
     const int max_depth = MAX_RECURSION_DEPTH_FACTOR * (int)log2(size);
     if (depth > max_depth) {
-        heap_sort(arr + low, size);
+        insertion_sort(arr + low, size);
         return;
     }
     
-    // Partition the array
-    int pi = hybrid_partition(arr, low, high);
+    // Use fast Hoare partition (same as sequential optimized)
+    int pi = partition_hoare(arr, low, high);
     
-    // Calculate partition sizes
-    int left_size = pi - low;
+    // Calculate partition sizes (Hoare: pi is last of left partition)
+    int left_size = pi - low + 1;
     int right_size = high - pi;
+    
+    // Early exit if partition very unbalanced - might be few_unique, use 3-way
+    if (left_size < size / 16 || right_size < size / 16) {
+        // Likely many duplicates, use 3-way partition
+        int lt, gt;
+        partition_3way(arr, low, high, lt, gt);
+        left_size = lt - low;
+        right_size = high - gt;
+        
+        if (left_size == 0 && right_size == 0) return;
+        
+        // Recurse on non-equal parts only
+        if (left_size > 1) {
+            cache_aware_quick_sort(arr, low, lt - 1, depth + 1);
+        }
+        if (right_size > 1) {
+            cache_aware_quick_sort(arr, gt + 1, high, depth + 1);
+        }
+        return;
+    }
     
     // Determine if we should use parallel tasks
     bool use_parallel = (size >= task_threshold);
@@ -250,37 +291,42 @@ void quick_sort_parallel(int arr[], int low, int high, int depth, int task_thres
             // If false sharing might occur, use untied tasks for better work stealing
             if (left_size < right_size) {
                 #pragma omp task untied firstprivate(arr, low, pi, depth, task_threshold) \
-                    if(left_size > task_threshold/2)
-                quick_sort_parallel(arr, low, pi - 1, depth + 1, task_threshold);
+                    if(left_size > INSERTION_SORT_THRESHOLD)
+                quick_sort_parallel(arr, low, pi, depth + 1, task_threshold);
                 
                 #pragma omp task untied firstprivate(arr, pi, high, depth, task_threshold) \
-                    if(right_size > task_threshold/2)
+                    if(right_size > INSERTION_SORT_THRESHOLD)
                 quick_sort_parallel(arr, pi + 1, high, depth + 1, task_threshold);
             } else {
                 #pragma omp task untied firstprivate(arr, pi, high, depth, task_threshold) \
-                    if(right_size > task_threshold/2)
+                    if(right_size > INSERTION_SORT_THRESHOLD)
                 quick_sort_parallel(arr, pi + 1, high, depth + 1, task_threshold);
                 
                 #pragma omp task untied firstprivate(arr, low, pi, depth, task_threshold) \
-                    if(left_size > task_threshold/2)
-                quick_sort_parallel(arr, low, pi - 1, depth + 1, task_threshold);
+                    if(left_size > INSERTION_SORT_THRESHOLD)
+                quick_sort_parallel(arr, low, pi, depth + 1, task_threshold);
             }
         } else {
             // No false sharing concern, use regular tasks
             #pragma omp task firstprivate(arr, low, pi, depth, task_threshold) \
-                if(left_size > task_threshold/2)
-            quick_sort_parallel(arr, low, pi - 1, depth + 1, task_threshold);
+                if(left_size > INSERTION_SORT_THRESHOLD)
+            quick_sort_parallel(arr, low, pi, depth + 1, task_threshold);
             
             #pragma omp task firstprivate(arr, pi, high, depth, task_threshold) \
-                if(right_size > task_threshold/2)
+                if(right_size > INSERTION_SORT_THRESHOLD)
             quick_sort_parallel(arr, pi + 1, high, depth + 1, task_threshold);
         }
         
         #pragma omp taskwait
         
     } else {
-        // Sequential recursion with cache awareness
-        cache_aware_quick_sort(arr, low, high, depth);
+        // Sequential recursion - handle both partitions
+        if (left_size > 1) {
+            cache_aware_quick_sort(arr, low, pi, depth + 1);
+        }
+        if (right_size > 1) {
+            cache_aware_quick_sort(arr, pi + 1, high, depth + 1);
+        }
     }
 }
 
