@@ -1,0 +1,54 @@
+\chapter{Uvod}
+
+Uvodno poglavlje rada prvog ciklusa studija sadrži obrazloženje teme, pregled relevantne literature, opis strukture rada i postavku problema.
+
+\section{Obrazloženje teme}
+
+U eri velikih podataka (big data), gdje se dnevno generiraju petabajti informacija, efikasno sortiranje postaje temelj mnogih računarskih aplikacija. Sortiranje je fundamentalna operacija u računarstvu koja se koristi u bazama podataka, pretraživačima, mašinskom učenju, grafičkom procesiranju i mnogim drugim domenama. Tradicionalni sekvencijalni algoritmi sortiranja, poput quicksort-a ili mergesort-a, postižu složenost O(n log n), što je optimalno za sekvencijalne mašine. Međutim, sa rastom veličine podataka, ovi algoritmi postaju usko grlo performansi, jer se izvršavaju na jednom procesoru.
+
+Paralelizacija algoritama sortiranja predstavlja prirodno rješenje ovog problema. Iskorištavanjem više procesorskih jezgara ili grafičkih procesora (GPU), moguće je značajno ubrzati sortiranje velikih skupova podataka. Paralelno računarstvo je postalo standard u savremenim računarskim sistemima, od mobilnih uređaja do superračunara. Algoritmi poput bitonic sort-a, koji su inherentno paralelni, ili adaptacije klasičnih algoritama za paralelne arhitekture, omogućavaju skalabilnost na hiljade jezgara.
+
+Ovaj rad se fokusira na paralelizaciju pet algoritama sortiranja: bitonic sort, merge sort, quick sort, radix sort i std::sort. Implementacije uključuju sekvencijalne verzije, paralelne verzije za višejezgrene CPU-e koristeći OpenMP, i verzije za GPU-e koristeći CUDA. Poređenje performansi pruža kvantitativne uvide u prednosti i ograničenja paralelizacije, uključujući overhead komunikacije, balansiranje opterećenja i skalabilnost.
+
+Tema je posebno relevantna jer paralelno računarstvo postaje neizbježno u aplikacijama poput analize velikih podataka, real-time procesiranja i visokoperformantnih računanja. Studije pokazuju da paralelizacija može postići ubrzanja od 10x do 100x za određene algoritme i veličine podataka.
+
+\section{Pregled literature}
+
+Literatura o paralelnom sortiranju obuhvata decenije istraživanja. Batcher (1968) je uveo bitonic sort kao inherentno paralelan algoritam sa složenošću O(log² n) na paralelnim mašinama. Moderna istraživanja fokusiraju se na GPU implementacije, gdje bitonic sort postiže značajna ubrzanja zbog SIMD arhitekture.
+
+Merge sort, poznat po stabilnosti, dobro se paralelizuje kroz divide-and-conquer pristup. Paralelne verzije koriste više niti za rekurzivno dijeljenje i spajanje podnizova, sa overhead-om koji se minimizira optimizacijama.
+
+Quicksort, efikasan sekvencijalno, izazovan je za paralelizaciju zbog nebalansiranih particija. Paralelne verzije koriste tehniku particioniranja na više niti, ali zahtijevaju pažljivu sinhronizaciju.
+
+Radix sort, nekomparativni algoritam, postiže linearnu složenost u određenim slučajevima. Paralelne implementacije koriste histograme i prefiksne sume za distribuciju posla.
+
+Studije naglašavaju prednosti GPU-a za masovnu paralelizaciju, ali i izazove poput upravljanja memorijom. CPU implementacije sa OpenMP pružaju dobru skalabilnost na višejezgrenim sistemima. Kombinovani pristupi (CPU + GPU) pokazuju najveći potencijal.
+
+Relevantne reference uključuju radove o GPU sortiranju \cite{Catic23}, skalabilnosti \cite{Mujic23}, i empirijskim studijama \cite{Yazici20, Schmid22}.
+
+\section{Postavka problema}
+
+Problem koji se rješava u ovom radu je: Kako paralelizirati algoritme sortiranja za optimalnu performansu na modernim hardverskim arhitekturama? Konkretno:
+
+- Implementirati sekvencijalne i paralelne verzije pet algoritama sortiranja.
+- Mjeriti performanse na različitim veličinama podataka.
+- Analizirati skalabilnost i overhead paralelizacije.
+- Usporediti efikasnost CPU (OpenMP) vs. GPU (CUDA) implementacija.
+
+\section{Struktura rada}
+
+Rad je organiziran u šest poglavlja. Prvo poglavlje (Uvod) obrazlaže temu, daje pregled literature i postavlja problem.
+
+Drugo poglavlje (Pregled literature) detaljno analizira postojeće radove o paralelnom sortiranju, fokusirajući se na algoritme, implementacije i performanse.
+
+Treće poglavlje (Implementacija) opisuje arhitekturu projekta, implementirane algoritme, korištene tehnologije (OpenMP, CUDA) i metodologiju testiranja.
+
+Četvrto poglavlje (Rezultati) prezentira mjerenja performansi, grafove ubrzanja i analizu rezultata.
+
+Peto poglavlje (Diskusija) analizira implikacije rezultata, ograničenja rada i pravce budućeg istraživanja.
+
+Šesto poglavlje (Zaključak) sumira doprinose rada i zaključuje o paralelizaciji algoritama sortiranja.
+
+
+
+

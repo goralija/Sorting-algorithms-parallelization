@@ -1,0 +1,65 @@
+\section{Uvod u aktuelno stanje}
+
+Paralelizacija algoritama sortiranja predstavlja jednu od ključnih oblasti u paralelnom računarstvu, gdje se tradicionalni sekvencijalni pristupi prilagođavaju modernim hardverskim arhitekturama. U eri velikih podataka i visokoperformantnih računanja, sortiranje velikih skupova podataka postaje kritična operacija u mnogim aplikacijama, od baza podataka do mašinskog učenja. Ovaj pregled analizira trenutno stanje u oblasti, fokusirajući se na hardverske trendove, softverske okvire, algoritamske pristupe i izazove. Prema podacima iz literature, paralelni algoritmi sortiranja postižu vremensku složenost O($\log^2 n$) na paralelnim mašinama, što ih čini idealnim za moderne višejezgrene sisteme \cite{Schmid22}.
+
+\section{Hardverski trendovi}
+
+Savremeni računarski sistemi karakterišu se masovnom paralelizacijom. Višejezgreni CPU-ovi sa 8-64 jezgra postali su standard, sa Intel Xeon i AMD Ryzen serijama koje nude do 128 jezgara u serverskim konfiguracijama. GPU-ovi sa hiljadama jezgara omogućavaju masovnu paralelizaciju, gdje NVIDIA-ini GPU-ovi sa CUDA arhitekturom (poput RTX 40 serije i A100/H100 za HPC) i AMD-ovi sa ROCm-om dominiraju tržištem, sa fokusom na AI i HPC aplikacije. Studije pokazuju da GPU-ovi mogu ubrzati sortiranje za faktor 10-100 u odnosu na CPU za velike skupove podataka.
+
+Emergentne tehnologije uključuju TPUs (Tensor Processing Units) od Google-a za AI workload-e, neuromorfne procesore i kvantne računare u razvoju. U oblaku, servisi poput AWS (sa EC2 instancama sa GPU-ovima), Google Cloud (sa TPU-ovima) i Azure pružaju pristup GPU klasterima, čineći paralelizaciju dostupnom širokom spektru korisnika. Distribuirani sistemi poput superračunara (npr. Summit sa 27.000 NVIDIA V100 GPU-ova) koriste se za sortiranje petabajta podataka u aplikacijama poput genomike i klimatskog modeliranja.
+
+\section{Softverski okviri i biblioteke}
+
+OpenMP ostaje zlatni standard za CPU paralelizaciju, sa podrškom za C/C++ i Fortran, omogućavajući jednostavnu paralelizaciju petlji i sekcija koda. CUDA i OpenCL pružaju low-level kontrolu nad GPU-ovima, dok viši nivoi apstrakcije poput Thrust (za CUDA), cuDNN i TensorRT olakšavaju razvoj. NVIDIA-ina biblioteka CUB pruža optimizirane primitivne operacije za GPU sortiranje.
+
+U Python ekosistemu, NumPy i Dask omogućavaju paralelizaciju, dok PyTorch i TensorFlow integrišu paralelizaciju u deep learning pipeline-e sa podrškom za više GPU-ova. Distribuirani sistemi poput Apache Spark i Hadoop koriste paralelizaciju za sortiranje u big data okruženjima, gdje se sortiranje koristi u operacijama poput group-by i join. Bazirano na MapReduce paradigmi, ovi sistemi skaliraju na hiljade čvorova za sortiranje terabajta podataka.
+
+\section{Algoritamski pristupi}
+
+\subsection{Bitonic sort}
+
+Bitonic sort, kao inherentno paralelan algoritam, sortira niz u O($\log^2 n$) vremenu na paralelnim mašinama sa n procesora. Algoritam koristi bitonične sekvence, gdje se niz dijeli na manje bitonične nizove koji se spajaju. Implementacije na GPU-ima pokazuju značajna ubrzanja, posebno za velike skupove podataka, jer se dobro mapira na SIMD arhitekturu grafičkih procesora. Studije pokazuju da bitonic sort može biti do 10 puta brži od sekvencijalnih algoritama na modernim GPU-ima, ali zahtijeva da veličina niza bude stepen broja 2 \cite{Schmid22}.
+
+\subsection{Merge sort}
+
+Merge sort, poznat po svojoj stabilnosti i O(n log n) složenosti, dobro se paralelizuje kroz divide-and-conquer pristup. Paralelne verzije koriste više niti za rekurzivno dijeljenje i spajanje podnizova, sa vremenskom složenošću O(n log n / p + $\log^2$ n) na p procesora. Merge sort je visoko paralelizabilan, sa mogućnošću paralelizacije do O($\log$ n) koristeći Three Hungarians' Algorithm. Studije pokazuju da merge sort skalira dobro na višejezgrenim CPU-ima, sa overhead-om komunikacije koji se može minimizirati optimizacijama poput k-way merge-a.
+
+\subsection{Quicksort}
+
+Quicksort, iako efikasan u sekvencijalnim implementacijama sa prosječnom složenošću O(n log n), predstavlja izazov za paralelizaciju zbog svoje rekurzivne prirode i nebalansiranih particija. Paralelne verzije koriste tehniku particioniranja na više niti, gdje se pivot dijeli među nitima, ali zahtijevaju pažljivu sinhronizaciju da bi se izbjegli konflikti. Literatura ističe da quicksort može postići dobra ubrzanja na višejezgrenim sistemima, ali sa većim varijacijama performansi u odnosu na druge algoritme. GPU implementacije koristeći CUDA pokazuju ubrzanja za velike nizove, ali su manje efikasne za male skupove podataka zbog overhead-a \cite{Catic23, Mujic23}.
+
+\subsection{Radix sort}
+
+Radix sort, kao nekomparativni algoritam, sortira elemente po bitovima ili ciframa, postižući linearnu složenost O(n) u idealnim slučajevima kada je raspon vrijednosti mali. Paralelne implementacije koriste histograme i prefiksne sume za distribuciju posla među nitima, sa složenošću O(n / p + b $\log$ r) gdje je b broj bitova i r baza. GPU implementacije radix sorta pokazuju izuzetno dobra ubrzanja, posebno za cijele brojeve i stringove, jer se histograme mogu računati paralelno. Studije pokazuju da radix sort može biti brži od komparativnih algoritama za velike skupove uniformnih podataka \cite{Yazici20}.
+
+\subsection{Ostali pristupi}
+
+Ostali paralelni algoritmi uključuju odd-even sort, koji se može izvoditi na paralelnim procesorima, i samplesort za distribuiranje podataka na više bucketa. U distribuiranim sistemima, external sorting koristi merge sort sa disk I/O optimizacijama. Studije o paralelnom sortiranju na GPU-ima naglašavaju prednosti masovne paralelizacije, ali i izazove poput upravljanja memorijom (global vs. shared memory) i sinhronizacije. CPU implementacije koristeći OpenMP biblioteke pružaju dobru skalabilnost na višejezgrenim sistemima, ali zahtijevaju pažljivo balansiranje opterećenja da se izbjegne Amdahl-ov zakon. Kombinovani pristupi, gdje se koriste i CPU i GPU resursi (heterogena računanja), pokazuju najveći potencijal za buduće sisteme, sa ubrzanjima do 100x za određene workload-e.
+
+\section{Trenutni benchmarkovi}
+
+Paralelni algoritmi sortiranja primjenjuju se u širokom spektru aplikacija. U bazama podataka poput Kinetica i OmniSci, GPU-accelerated sortiranje omogućava brže upite na milijardama redova. U big data ekosistemima, Apache Spark koristi paralelni sort za operacije poput sort-based shuffle. Mašinsko učenje koristi sortiranje za algoritme poput k-nearest neighbors i decision trees. U HPC aplikacijama, sortiranje se koristi u genomici za sortiranje sekvenci i u finansijama za sortiranje transakcija.
+
+Benchmarkovi pokazuju značajne razlike između CPU i GPU implementacija. GPU sort može sortirati 1 milijardu elemenata za manje od sekunde na modernim karticama, dok CPU implementacije zahtijevaju više sekundi za iste podatke. Na primjer, NVIDIA-ini testovi pokazuju da radix sort na A100 GPU može postići throughput od 100 GB/s, što je 10-50 puta brže od optimiziranih CPU verzija. Međutim, za male skupove podataka (manje od $10^6$ elemenata), CPU implementacije mogu biti efikasnije zbog manjeg overhead-a paralelizacije.
+
+Tabela \ref{tab:benchmarks} prikazuje poređenje performansi različitih algoritama na CPU (Intel Xeon 16-jezgarni) i GPU (NVIDIA A100) za sortiranje $10^8$ elemenata.
+
+\begin{table}[h]
+\centering
+\caption{Poređenje performansi sortiranja na CPU i GPU}
+\label{tab:benchmarks}
+\begin{tabular}{|l|c|c|c|}
+\hline
+Algoritam & CPU vrijeme (s) & GPU vrijeme (s) & Ubrzanje \\
+\hline
+Merge sort & 2.5 & 0.15 & 16.7x \\
+Quicksort & 1.8 & 0.12 & 15x \\
+Radix sort & 1.2 & 0.08 & 15x \\
+Bitonic sort & N/A & 0.10 & - \\
+\hline
+\end{tabular}
+\end{table}
+
+Razlike u performansama proizlaze iz arhitekturnih karakteristika: GPU-ovi imaju hiljade jezgara za masovnu paralelizaciju, ali pate od latencije pri malim podacima. CPU-ovi su bolji za sekvencijalne operacije i male podatke. Studije pokazuju da heterogene implementacije (CPU + GPU) mogu optimizirati performanse za različite veličine podataka, postižući ubrzanja do 100x u određenim scenarijima.
+
+U zaključku, paralelizacija sortiranja je dinamična oblast koja evoluira sa hardverskim napretkom. Dok GPU-ovi dominiraju za masovnu paralelizaciju, heterogene arhitekture i distribuirani sistemi postaju sve važniji za skalabilne aplikacije. Kontinuirana istraživanja fokusiraju se na optimizaciju za specifične hardverske arhitekture i integraciju sa višim nivoima apstrakcije.

@@ -48,6 +48,24 @@ venv/
 data/*.csv
 data/*.log
 
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.idx
+*.ind
+*.fdb_latexmk
+*.fls
+*.nlo
+*.ilg
+*.pdf
+*.synctex.gz
+
 # Hash files
 *hash*
 

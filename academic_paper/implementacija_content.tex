@@ -1,0 +1,10 @@
+U ovom poglavlju opisat ćemo implementaciju paraleliziranih algoritama sortiranja. Projekt je strukturiran u nekoliko direktorija: \texttt{sequential\_naive}, \texttt{sequential\_optimized}, \texttt{parallel\_cpu} i \texttt{parallel\_gpu}.
+
+Za sekvencijalne implementacije koristili smo standardne algoritme sortiranja iz C++ standardne biblioteke (\texttt{std::sort}) i vlastite implementacije bitonic sort, merge sort, quick sort i radix sort algoritama.
+
+Za paralelizaciju na CPU koristili smo OpenMP biblioteku za višejezgrene procesore. Implementirali smo paralelizirane verzije istih algoritama koristeći OpenMP direktive \\
+poput \texttt{\#pragma omp parallel for}.
+
+Za paralelizaciju na GPU koristili smo CUDA framework. Implementirali smo verzije algoritama koje koriste GPU jezgre za paralelno izvršavanje.
+
+Svi algoritmi su testirani na različitim veličinama ulaza i mjereno je vrijeme izvršavanja za usporedbu performansi.
