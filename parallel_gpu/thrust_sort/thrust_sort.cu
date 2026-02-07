@@ -27,7 +27,7 @@ void custom_hybrid_sort(std::vector<int>& h_arr) {
     if (n <= 1000000) {
         merge_sort_gpu(h_arr);
     } 
-    // 3. Za sve preko milion, koristi Radix
+    // 3. Za sve preko milion, koristi Radix2
     else {
         radix_sort_gpu(h_arr);
     }

@@ -1,0 +1,26 @@
+Algorithm,Mode,ArraySize,E,ThreadsMerge,MergeCoreTimeMs,Verified
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,1,256,450.494,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,256,465.225,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,256,761.148,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,512,458.099,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,512,745.84,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,1,256,448.026,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,256,463.202,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,256,756.07,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,512,459.197,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,512,744.128,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,1,256,8400.22,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,256,8108.16,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,256,10460.7,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,512,8086.07,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,512,10342.2,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,1,256,451.213,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,256,467.469,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,256,759.966,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,512,462.65,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,512,745.189,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,1,256,450.176,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,256,464.567,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,256,760.02,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,2,512,458.52,1
+Custom Merge Sort,GPU-Hybrid-Bitonic-Path,134217728,4,512,743.436,1
