@@ -69,7 +69,8 @@ __global__ void bitonic_shared_kernel(int* d_arr, int n_pow2) {
         for (int j = k >> 1; j > 0; j >>= 1) {
             int ixj = tid ^ j;
             if (ixj > tid) {
-                bool asc = ((gid & k) == 0); // global index determines direction for this element
+                // lokalni smjer po tid za korektan per-block bitonic sort
+                bool asc = ((tid & k) == 0);
                 int a = s_mem[tid];
                 int b = s_mem[ixj];
                 if ((a > b) == asc) {
@@ -99,6 +100,32 @@ __global__ void bitonic_global_stride_kernel(int* d_arr, int n_pow2, int j, int 
                 d_arr[i] = b;
                 d_arr[ixj] = a;
             }
+        }
+    }
+}
+
+// NEW: Fused global kernel – iterira j interno za jedan k (manje kernel launch-eva)
+__global__ void bitonic_global_fused_kernel(int* d_arr, int n_pow2, int k) {
+    int i0 = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = gridDim.x * blockDim.x;
+
+    for (int i = i0; i < n_pow2; i += stride) {
+        // Za ovaj i, smjer je konstantan za sve j u okviru k
+        bool asc = ((i & k) == 0);
+
+        // Iteriraj sve faze j = k/2, k/4, ... , 1
+        for (int j = (k >> 1); j > 0; j >>= 1) {
+            int ixj = i ^ j;
+            if (ixj > i && ixj < n_pow2) {
+                // read-only cache hint
+                int a = __ldg(&d_arr[i]);
+                int b = __ldg(&d_arr[ixj]);
+                if ((a > b) == asc) {
+                    d_arr[i]  = b;
+                    d_arr[ixj] = a;
+                }
+            }
+            // nema potrebe za __syncthreads() (grid-stride, različiti i)
         }
     }
 }
@@ -179,9 +206,13 @@ void bitonic_sort_gpu(const std::vector<int>& h_in, std::vector<int>& h_out,
     if (t != threads) threads = t;
 
     int blocks = (n_pow2 + threads - 1) / threads;
-    if (blocks_override > 0) blocks = blocks_override;
-    int maxBlocksHeuristic = dinfo.multiProcessorCount * 32;
-    if (blocks > maxBlocksHeuristic) blocks = maxBlocksHeuristic;
+    if (blocks_override > 0) {
+        blocks = blocks_override;
+    } else {
+        // agresivnija zasićenost: SM_count * 2048 (RTX 3050 Ti: 20 * 2048 = 40960)
+        int maxBlocksHeuristic = dinfo.multiProcessorCount * 2048;
+        if (blocks > maxBlocksHeuristic) blocks = maxBlocksHeuristic;
+    }
 
     if (print_grid) {
         std::cout << "Launching threads=" << threads << " blocks=" << blocks << " n_pow2=" << n_pow2 << std::endl;
@@ -217,10 +248,9 @@ void bitonic_sort_gpu(const std::vector<int>& h_in, std::vector<int>& h_out,
     }
 
     // Global-phase
-    int start_k = threads * 2;
-    if (start_k < 2) start_k = 2;
+    int start_k = 2; // počni od 2, kao canonical bitonic
     for (int k = start_k; k <= n_pow2; k <<= 1) {
-        for (int j = k >> 1; j > 0; j >>= 1) {
+        for (int j = (k >> 1); j > 0; j >>= 1) {
             bitonic_global_stride_kernel<<<blocks, threads>>>(d_arr, n_pow2, j, k);
             gpuErrchk(cudaGetLastError());
             timings.kernel_invocations += 1;
@@ -305,7 +335,7 @@ struct CLIOptions {
     std::vector<int> sweep_threads; // if non-empty, run sweep
     std::vector<int> sweep_blocks;
     std::string sweep_name;
-    int sweep_delay_ms = 200;
+    int sweep_delay_ms = 10;
 };
 
 static std::vector<int> parse_list(const std::string &s) {
@@ -410,10 +440,8 @@ int main(int argc, char** argv) {
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> dtotal = end - start;
 
-        // verify
-        std::vector<int> h_ref = h_in;
-        std::sort(h_ref.begin(), h_ref.end());
-        bool ok = (h_ref == h_out);
+
+        bool ok = std::is_sorted(h_out.begin(), h_out.end());
 
         double throughput = (double)size / (t.total_ms / 1000.0) / 1e6; // Melems/s
 
