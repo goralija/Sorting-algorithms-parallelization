@@ -1,0 +1,2 @@
+timestamp,device,ArraySize,BestAlgName,BestAlgId,BestE,BestThreads,BestTotalGPU_ms
+"2026-02-07 23:41:57","NVIDIA GeForce RTX 3050 Ti Laptop GPU",134217728,PerElement,0,2,256,429.641

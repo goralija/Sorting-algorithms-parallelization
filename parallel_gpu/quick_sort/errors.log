@@ -1,0 +1,2 @@
+Algorithm: GPU QuickSort, Mode: gpu_only, Size: 1000000, Type: random → FAILED (unsorted)
+Algorithm: GPU QuickSort, Mode: gpu_only, Size: 5000, Type: random → FAILED (unsorted)

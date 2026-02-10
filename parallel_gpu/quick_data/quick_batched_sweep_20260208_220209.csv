@@ -1,0 +1,5 @@
+timestamp,run_id,size,next_pow2,rep,seed,device_id,device_name,compute_capability,sm_count,threads,blocks,algorithm,h2d_ms,total_kernel_ms,kernel_invocations,d2h_ms,total_ms,throughput_Melems_s,verify_passed
+20260208_220215,1,134217728,134217728,0,12345,0,"NVIDIA GeForce RTX 3050 Ti Laptop GPU",8.6,20,128,Batched,"GPU-QuickSort (Batched)",0.000,0.000,55250,0.000,5187.565,25.873,1
+20260208_220221,2,134217728,134217728,0,12345,0,"NVIDIA GeForce RTX 3050 Ti Laptop GPU",8.6,20,256,Batched,"GPU-QuickSort (Batched)",0.000,0.000,55160,0.000,5008.445,26.798,1
+20260208_220227,3,134217728,134217728,0,12345,0,"NVIDIA GeForce RTX 3050 Ti Laptop GPU",8.6,20,512,Batched,"GPU-QuickSort (Batched)",0.000,0.000,56148,0.000,5052.610,26.564,1
+20260208_220233,4,134217728,134217728,0,12345,0,"NVIDIA GeForce RTX 3050 Ti Laptop GPU",8.6,20,1024,Batched,"GPU-QuickSort (Batched)",0.000,0.000,55005,0.000,4910.456,27.333,1
