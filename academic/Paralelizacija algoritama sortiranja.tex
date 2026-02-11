@@ -201,7 +201,7 @@ Tabela~\ref{tab:gpu} prikazuje performanse GPU implementacija za 128M elemenata.
 \textbf{Algoritam} & \textbf{Varijanta} & \textbf{Kernel} & \textbf{Ukupno} & \textbf{Melem/s} \\
  & & \textbf{(ms)} & \textbf{(ms)} & \\
 \midrule
-Bitonic & Shared+Stride & 34 & 50 & 86 \\
+Bitonic & Shared+Stride & 1823 & 2003 & 67 \\
 Merge & PerElement E=8 & 383 & 430 & 312 \\
 Quick & Iterative V2 & 811 & 1021 & 131 \\
 Radix & Custom 256 niti & 187 & 347 & 386 \\
@@ -210,7 +210,7 @@ Thrust & Baseline & 49 & 309 & 434 \\
 \end{tabular}
 \end{table}
 
-Thrust biblioteka postiže najbolji ukupni throughput od 434 Melem/s zahvaljujući visokooptimiziranim NVIDIA implementacijama. Među vlastitim implementacijama, radix sort postiže najbolje kernel vrijeme (187 ms) zahvaljujući regularnim pristupima memoriji, dok bitonic sort ima najkraće ukupno vrijeme (50 ms) jer ima mali broj kernel poziva i efikasan grid-stride pristup. Quick sort na GPU-u pokazuje najslabije rezultate (1021 ms) zbog neregularnog workloada, ali hibridni pristup sa CPU bootstrap fazom značajno poboljšava performanse u odnosu na prethodne varijante (Batched: 5187 ms, Fat: 4481 ms). Evolucija quick sort implementacije pokazuje da je izbor arhitekture kernela kritičan: Batched varijanta koja pokreće jedan kernel po nivou rekurzije pati od overhead-a pokretanja kernela, Fat varijanta sa velikom shared memorijom gubi na occupancy-u, dok Iterative V2 sa CPU bootstrap fazom i warp-agregiranom task queue postiže 5$\times$ bolje performanse od inicijalne implementacije.
+Thrust biblioteka postiže najbolji ukupni throughput od 434 Melem/s zahvaljujući visokooptimiziranim NVIDIA implementacijama. Među vlastitim implementacijama, radix sort postiže najbolje kernel i ukupno vrijeme (187 ms kernel, 347 ms ukupno) zahvaljujući regularnim pristupima memoriji i linearnoj složenosti. Bitonic sort, unatoč inherentnoj paralelnosti, ima najduže ukupno vrijeme (2003 ms) jer $O(n \log^2 n)$ složenost zahtijeva veliki broj prolaza kroz podatke --- za $n = 2^{27}$ elemenata to je $27 \times 28 / 2 = 378$ faza bitoničnog spajanja. Quick sort na GPU-u pokazuje drugo najduže vrijeme (1021 ms) zbog neregularnog workloada, ali hibridni pristup sa CPU bootstrap fazom značajno poboljšava performanse u odnosu na prethodne varijante (Batched: 5187 ms, Fat: 4481 ms). Evolucija quick sort implementacije pokazuje da je izbor arhitekture kernela kritičan: Batched varijanta koja pokreće jedan kernel po nivou rekurzije pati od overhead-a pokretanja kernela, Fat varijanta sa velikom shared memorijom gubi na occupancy-u, dok Iterative V2 sa CPU bootstrap fazom i warp-agregiranom task queue postiže 5$\times$ bolje performanse od inicijalne implementacije.
 
 Za merge sort GPU, testirane su tri varijante merge faze: PerElement gdje svaka nit obrađuje jedan element merge-path binarne pretrage, Coarsened gdje svaka nit procesira $E$ uzastopnih elemenata za sakrivanje memorijske latencije, i BlockMerge sa zajedničkim korištenjem shared memorije unutar bloka. PerElement varijanta sa $E=8$ i 256 niti po bloku je postigla najbolje rezultate (430 ms), dok je BlockMerge bio najsporiji (1895 ms) zbog prekomjerne sinhronizacije između niti.
 
@@ -218,9 +218,9 @@ Za radix sort, vlastita implementacija sa warp-level primitivama postiže throug
 
 \subsection{Poređenje CPU i GPU}
 
-Tabela~\ref{tab:cpugpu} poredi najbrže CPU (paralelna OpenMP verzija) i GPU implementacije za 128M elemenata. Bitonic sort pokazuje najveće GPU ubrzanje (250$\times$) jer se algoritam prirodno mapira na GPU arhitekturu sa nezavisnim compare-and-swap operacijama, dok je CPU verzija opterećena $O(n \log^2 n)$ složenošću. Radix sort pokazuje najmanji relativni dobitak (1,5$\times$) jer je CPU paralelna verzija izuzetno efikasna sa thread-local histogramima i base-256 shemom.
+Tabela~\ref{tab:cpugpu} poredi najbrže CPU (paralelna OpenMP verzija) i GPU implementacije za 128M elemenata. Merge sort pokazuje najveće GPU ubrzanje (6,4$\times$), blisko praćen bitonic sortom (6,2$\times$). Radix sort pokazuje najmanji relativni dobitak (1,5$\times$) jer je CPU paralelna verzija izuzetno efikasna sa thread-local histogramima i base-256 shemom. Bitonic sort, unatoč inherentnoj paralelnosti compare-and-swap operacija, ne postiže dramatično ubrzanje na GPU-u jer $O(n \log^2 n)$ složenost zahtijeva stotine sekvencijalnih faza bitoničnog spajanja, što ograničava ukupne performanse čak i uz masivnu paralelizaciju svake faze.
 
-Slika~\ref{fig:gpu_bar} vizualizira GPU vremena za sve algoritme. Važno je napomenuti da GPU ukupna vremena uključuju H2D i D2H memorijske transfere koji za 512 MB podataka iznose 160--200 ms, što predstavlja značajan dio ukupnog vremena posebno za brže algoritme poput bitonic sorta. Kada se posmatraju samo kernel vremena, bitonic sort (34 ms) i Thrust (49 ms) su dva najbrža algoritma, dok se razlika u ukupnim vremenima (50 ms vs 309 ms) objašnjava različitim udjelom overhead-a transfera.
+Slika~\ref{fig:gpu_bar} vizualizira GPU vremena za sve algoritme. Važno je napomenuti da GPU ukupna vremena uključuju H2D i D2H memorijske transfere koji za 512 MB podataka iznose 160--200 ms, što predstavlja značajan dio ukupnog vremena posebno za brže algoritme poput radix sorta (46\% overhead-a) i Thrusta (84\% overhead-a). Bitonic sort sa 2003 ms ukupnog vremena je najsporiji GPU algoritam jer $O(n \log^2 n)$ složenost rezultira velikim brojem kernel faza, dok radix sort (347 ms) i Thrust (309 ms) dominiraju zahvaljujući linearnoj složenosti i optimiziranim implementacijama.
 
 \begin{table}[htbp]
 \caption{Poređenje CPU i GPU -- 128M random elementi (ms)}
@@ -231,7 +231,7 @@ Slika~\ref{fig:gpu_bar} vizualizira GPU vremena za sve algoritme. Važno je napo
 \toprule
 \textbf{Algoritam} & \textbf{CPU} & \textbf{GPU} & \textbf{GPU ubrzanje} \\
 \midrule
-Bitonic sort & 12511 & 50 & 250,2$\times$ \\
+Bitonic sort & 12511 & 2003 & 6,2$\times$ \\
 Merge sort & 2768 & 430 & 6,4$\times$ \\
 Quick sort & 1803 & 1021 & 1,8$\times$ \\
 Radix sort & 505 & 347 & 1,5$\times$ \\
@@ -252,7 +252,7 @@ std::sort/Thrust & 1310 & 309 & 4,2$\times$ \\
     symbolic x coords={Bitonic,Merge,Quick,Radix,Thrust},
     xtick=data,
     ymin=0,
-    ymax=1200,
+    ymax=2200,
     legend style={at={(0.98,0.98)},anchor=north east,font=\footnotesize},
     grid=major,
     grid style={dashed,gray!30},
@@ -260,7 +260,7 @@ std::sort/Thrust & 1310 & 309 & 4,2$\times$ \\
     nodes near coords style={font=\tiny},
     every node near coord/.append style={rotate=90, anchor=west},
 ]
-\addplot coordinates {(Bitonic,50) (Merge,430) (Quick,1021) (Radix,347) (Thrust,309)};
+\addplot coordinates {(Bitonic,2003) (Merge,430) (Quick,1021) (Radix,347) (Thrust,309)};
 \legend{GPU Total}
 \end{axis}
 \end{tikzpicture}
@@ -270,9 +270,9 @@ std::sort/Thrust & 1310 & 309 & 4,2$\times$ \\
 
 \section{Diskusija}
 
-Rezultati pokazuju da pogodnost algoritma za GPU paralelizaciju zavisi od regularnosti pristupa podacima. Bitonic sort se prirodno mapira na GPU SIMD arhitekturu jer su compare-and-swap operacije nezavisne od podataka, što rezultira konzistentnim performansama. Radix sort postiže visok throughput zahvaljujući regularnim pristupima memoriji i predvidljivom toku izvršavanja. Quick sort predstavlja najveći izazov za GPU implementaciju zbog nebalansiranih particija i rekurzivne prirode, što naš hibridni CPU-GPU pristup djelimično rješava.
+Rezultati pokazuju da pogodnost algoritma za GPU paralelizaciju zavisi od kombinacije regularnosti pristupa podacima i algoritamske složenosti. Iako se bitonic sort prirodno mapira na GPU SIMD arhitekturu sa nezavisnim compare-and-swap operacijama, $O(n \log^2 n)$ složenost sa stotinama sekvencijalnih faza ga čini najsporijim GPU algoritmom za velike nizove (2003 ms za 128M). Radix sort postiže visok throughput zahvaljujući regularnim pristupima memoriji, linearnoj složenosti i predvidljivom toku izvršavanja. Quick sort predstavlja najveći izazov za GPU implementaciju zbog nebalansiranih particija i rekurzivne prirode, što naš hibridni CPU-GPU pristup djelimično rješava.
 
-Značajan faktor u ukupnim performansama je overhead transfera podataka između CPU i GPU memorije. Za 128M integer elemenata (512 MB), H2D i D2H transfer zajedno iznose 160--200 ms, što kod bitonic sorta čini preko 30\% ukupnog vremena. Za realne aplikacije gdje podaci ostaju na GPU-u, kernel vremena su relevantnija metrika.
+Značajan faktor u ukupnim performansama je overhead transfera podataka između CPU i GPU memorije. Za 128M integer elemenata (512 MB), H2D i D2H transfer zajedno iznose 160--200 ms, što kod bržih algoritama poput Thrusta čini preko 80\% ukupnog vremena (260 ms od 309 ms), dok kod sporijeg bitonic sorta čini svega 9\% (180 ms od 2003 ms). Za realne aplikacije gdje podaci ostaju na GPU-u, kernel vremena su relevantnija metrika.
 
 Poređenje CPU i GPU implementacija ukazuje na komplementarnu prirodu dvije platforme. GPU pruža veći throughput za regularne paralelne workloade na velikim skupovima podataka, dok CPU sa OpenMP i AVX2 nudi konkurentne performanse bez overhead-a memorijskih transfera. Za manje nizove ($< 1$M elemenata), CPU tipično nadmašuje GPU.
 
@@ -286,9 +286,9 @@ Rezultati također potvrđuju Amdahlov zakon u praksi: quick sort postiže samo 
 
 U ovom radu implementirano je pet algoritama sortiranja (bitonic sort, merge sort, quick sort, radix sort i std::sort) u pet varijanti: sekvencijalna naivna, sekvencijalna optimizovana, paralelna CPU (OpenMP + AVX2 SIMD), naivna GPU i paralelna GPU (CUDA). Ukupno je napisano preko 6.700 linija koda za algoritme sortiranja.
 
-GPU implementacije su pokazale značajan potencijal za ubrzanje sortiranja velikih skupova podataka. Bitonic sort je postigao ubrzanje od 250$\times$ u odnosu na paralelnu CPU verziju zahvaljujući prirodnom mapiranju na SIMD arhitekturu. Thrust biblioteka je postigla najbolji throughput od 434 Melem/s, dok je među vlastitim implementacijama radix sort postigao 386 Melem/s (89\% performansi Thrust-a). CPU paralelizacija sa OpenMP je pružila ubrzanja do 21,6$\times$ za radix sort u odnosu na naivnu verziju, dok su sekvencijalne optimizacije same po sebi donijele značajna poboljšanja (do 7,2$\times$ za radix sort).
+GPU implementacije su pokazale značajan potencijal za ubrzanje sortiranja velikih skupova podataka. Merge sort je postigao najveće GPU ubrzanje od 6,4$\times$ u odnosu na paralelnu CPU verziju, dok je bitonic sort, unatoč inherentnoj paralelnosti, bio najsporiji GPU algoritam (2003 ms) zbog $O(n \log^2 n)$ složenosti. Thrust biblioteka je postigla najbolji throughput od 434 Melem/s, dok je među vlastitim implementacijama radix sort postigao 386 Melem/s (89\% performansi Thrust-a). CPU paralelizacija sa OpenMP je pružila ubrzanja do 21,6$\times$ za radix sort u odnosu na naivnu verziju, dok su sekvencijalne optimizacije same po sebi donijele značajna poboljšanja (do 7,2$\times$ za radix sort).
 
-Ključni uvid iz ovog istraživanja je da regularnost pristupa podacima determinira pogodnost algoritma za GPU paralelizaciju. Algoritmi sa predvidljivim pristupnim obrascima (bitonic sort, radix sort) postižu značajno bolje GPU performanse od algoritama sa neregularnim worklodom (quick sort).
+Ključni uvid iz ovog istraživanja je da algoritamska složenost i regularnost pristupa podacima zajedno determiniraju pogodnost algoritma za GPU paralelizaciju. Radix sort sa linearnom složenošću i regularnim pristupima postiže najbolje GPU performanse (347 ms), dok bitonic sort unatoč regularnim pristupima pati od $O(n \log^2 n)$ složenosti (2003 ms). Quick sort sa neregularnim workloadom pokazuje srednjoročne performanse (1021 ms) zahvaljujući hibridnom CPU-GPU pristupu.
 
 Budući rad uključuje implementaciju na višestrukim GPU-ovima, hibridno CPU-GPU sortiranje za miješane workloade, testiranje na različitim tipovima podataka i distribucijama, te profiling-vođenu optimizaciju kernela za postizanje većeg occupancy-a i bolje iskorištenosti memorijske propusnosti.
 

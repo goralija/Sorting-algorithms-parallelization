@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1770765684.5721 "c:/Users/W/Desktop/Sorting-algorithms-parallelization/academic/Paralelizacija algoritama sortiranja.tex" "Paralelizacija algoritama sortiranja.pdf" "Paralelizacija algoritama sortiranja" 1770765686.25685 0
+["pdflatex"] 1770768084.78021 "c:/Users/W/Desktop/Sorting-algorithms-parallelization/academic/Paralelizacija algoritama sortiranja.tex" "Paralelizacija algoritama sortiranja.pdf" "Paralelizacija algoritama sortiranja" 1770768086.68621 0
   "C:/Users/W/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1770764674 82507 a9eef8696c92627b87e9975edea03b2a ""
   "C:/Users/W/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt" 1769553761 13331551 0f6c7aba22460f9d6f2d91062be2b6e8 ""
   "C:/Users/W/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/base/8r.enc" 1458473887 4993 80dc9bab7f31fb78a000ccfed0e27cab ""
@@ -197,10 +197,10 @@
   "C:/Users/W/AppData/Local/Programs/MiKTeX/tex/latex/psnfss/t1ptm.fd" 1585253778 817 61d7da1e9f9e74989b196d147e623736 ""
   "C:/Users/W/AppData/Local/Programs/MiKTeX/tex/latex/psnfss/ts1ptm.fd" 1585253778 653 96f56dc5d1ef1fe1121f1cfeec70ee0c ""
   "C:/Users/W/AppData/Local/Programs/MiKTeX/tex/latex/xcolor/xcolor.sty" 1729265222 55384 b454dec21c2d9f45ec0b793f0995b992 ""
-  "IEEEtran.cls" 1769987361 288304 5b2e4fa15b0f7eabb840ebf67df4c0f7 ""
-  "Paralelizacija algoritama sortiranja.aux" 1770765686 3061 f4c35750c1454fa15fabf7d4d2bf8eab "pdflatex"
-  "Paralelizacija algoritama sortiranja.tex" 1770765682 25361 12f8273805c6fb828650ba02f7ca0a0b ""
-  "c:/Users/W/Desktop/Sorting-algorithms-parallelization/academic/Paralelizacija algoritama sortiranja.tex" 1770765682 25361 12f8273805c6fb828650ba02f7ca0a0b ""
+  "IEEEtran.cls" 1770766475 288304 5b2e4fa15b0f7eabb840ebf67df4c0f7 ""
+  "Paralelizacija algoritama sortiranja.aux" 1770768086 3061 85d86f6e00725bb7384a8388aba9341d "pdflatex"
+  "Paralelizacija algoritama sortiranja.tex" 1770768081 27376 db172e2c881e2a9124be063d27cfdd44 ""
+  "c:/Users/W/Desktop/Sorting-algorithms-parallelization/academic/Paralelizacija algoritama sortiranja.tex" 1770768081 27376 db172e2c881e2a9124be063d27cfdd44 ""
   (generated)
   "Paralelizacija algoritama sortiranja.aux"
   "Paralelizacija algoritama sortiranja.log"
