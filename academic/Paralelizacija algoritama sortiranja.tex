@@ -16,6 +16,15 @@
 \pgfplotsset{compat=1.18}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\makeatletter
+\newcommand{\linebreakand}{%
+  \end{@IEEEauthorhalign}
+  \hfill\mbox{}\par
+  \mbox{}\hfill\begin{@IEEEauthorhalign}
+}
+\makeatother
+
 \begin{document}
 
 \title{Parallelization of Sorting Algorithms: Performance Optimization through Parallel Computing}
@@ -37,7 +46,7 @@ bdurmo1@etf.unsa.ba}
 \textit{University of Sarajevo}\\
 Sarajevo, Bosnia and Herzegovina \\
 hmioc1@etf.unsa.ba}
-\and
+\linebreakand
 \IEEEauthorblockN{Amar Hodžić}
 \IEEEauthorblockA{\textit{Faculty of Electrical Engineering} \\
 \textit{University of Sarajevo}\\
@@ -49,9 +58,6 @@ ahodzic13@etf.unsa.ba}
 \textit{University of Sarajevo}\\
 Sarajevo, Bosnia and Herzegovina \\
 kabadzic1@etf.unsa.ba}
-\and
-\IEEEauthorblockN{~}
-\IEEEauthorblockA{~}
 }
 
 \maketitle
