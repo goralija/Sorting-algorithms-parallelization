@@ -388,6 +388,7 @@ Table~\ref{tab:gpu} shows GPU implementation performance for $2^{27}$ (128M) ele
  & & \textbf{(ms)} & \textbf{(ms)} & \\
 \midrule
 Bitonic & Shared+Stride & 1823 & 2003 & 67 \\
+Bitonic & Shared+Stride & 1823 & 2003 & 67 \\
 Merge & PerElement E=8 & 383 & 430 & 312 \\
 Quick & Iterative V2 & 811 & 1021 & 131 \\
 Radix & Custom 256 threads & 187 & 347 & 386 \\
@@ -437,6 +438,7 @@ std::sort/Thrust & 1310 & 309 & 4.2$\times$ \\
     xtick=data,
     ymin=0,
     ymax=2200,
+    ymax=2200,
     legend style={at={(0.98,0.98)},anchor=north east,font=\footnotesize},
     grid=major,
     grid style={dashed,gray!30},
@@ -444,6 +446,7 @@ std::sort/Thrust & 1310 & 309 & 4.2$\times$ \\
     nodes near coords style={font=\tiny},
     every node near coord/.append style={rotate=90, anchor=west},
 ]
+\addplot coordinates {(Bitonic,2003) (Merge,430) (Quick,1021) (Radix,347) (Thrust,309)};
 \addplot coordinates {(Bitonic,2003) (Merge,430) (Quick,1021) (Radix,347) (Thrust,309)};
 \legend{GPU Total}
 \end{axis}
